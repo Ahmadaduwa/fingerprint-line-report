@@ -1,7 +1,4 @@
-"""
-Web server สำหรับจัดการรายชื่อผู้รับรายงาน LINE พร้อมระบบ Login รักษาความปลอดภัย
-รันบนพอร์ต 8090 (ค่าเริ่มต้น)
-"""
+import hmac
 import json
 import logging
 import os
@@ -12,6 +9,8 @@ from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
+from discovered import get_discovered, record_discovered, remove_discovered
+from line_api import get_group_summary, get_profile, reply_text
 from recipients import add_recipient, get_active_target_ids, get_recipients, remove_recipient, toggle_recipient
 from report import thai_date
 
@@ -173,6 +172,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "company_name": company_name or "โรงเรียนแสงธรรมวิทยา",
                 "today_thai": thai_date(now.date()),
                 "recipients": recipients,
+                "discovered": get_discovered(),
                 "active_count": len(active_ids),
                 "send_times": [t.strftime("%H:%M") if hasattr(t, "strftime") else str(t) for t in times],
                 "next_run": next_dt.strftime("%Y-%m-%d %H:%M:%S") if next_dt else None,
@@ -186,23 +186,65 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         self.send_error(404, "Not Found")
 
+    def _read_json(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length <= 0:
+                return {}
+            return json.loads(self.rfile.read(length).decode("utf-8"))
+        except Exception:
+            return {}
+
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
-        try:
-            payload = json.loads(body)
-        except Exception:
-            payload = {}
+        payload = self._read_json()
 
-        # 1. Login Endpoint (ไม่ต้องมี Token ก่อน)
+        # 1. LINE Webhook Endpoint (ไม่ต้องมี Token เพื่อให้ LINE ส่งเข้ามาได้)
+        if path in ("/webhook", "/api/webhook"):
+            events = payload.get("events", [])
+            for ev in events:
+                ev_type = ev.get("type")
+                source = ev.get("source", {})
+                src_type = source.get("type", "user")
+                reply_token = ev.get("replyToken")
+
+                if src_type == "user":
+                    user_id = source.get("userId")
+                    if user_id:
+                        prof = get_profile(WebState.token, user_id)
+                        display_name = prof.get("displayName") or "ผู้ใช้งาน LINE"
+                        pic = prof.get("pictureUrl") or ""
+                        record_discovered(user_id, name=display_name, target_type="user", picture_url=pic)
+                        if ev_type in ("follow", "message") and reply_token:
+                            reply_text(
+                                WebState.token,
+                                reply_token,
+                                f"สวัสดีครับคุณ {display_name} 👋\n\nระบบสรุปเวลาทำงานบันทึก LINE ID ของคุณแล้ว:\n{user_id}\n\nกรุณาแจ้งแอดมินให้กดเปิดรับรายงานในระบบครับ"
+                            )
+                elif src_type == "group":
+                    group_id = source.get("groupId")
+                    if group_id:
+                        grp = get_group_summary(WebState.token, group_id)
+                        group_name = grp.get("groupName") or "กลุ่ม LINE"
+                        pic = grp.get("pictureUrl") or ""
+                        record_discovered(group_id, name=group_name, target_type="group", picture_url=pic)
+                        if ev_type in ("join", "message") and reply_token:
+                            reply_text(
+                                WebState.token,
+                                reply_token,
+                                f"สวัสดีครับกลุ่ม {group_name} 👋\n\nระบบสรุปเวลาทำงานบันทึก Group ID แล้ว:\n{group_id}\n\nกรุณาแจ้งแอดมินให้กดเปิดรับรายงานในระบบครับ"
+                            )
+            self._send_json({"ok": True})
+            return
+
+        # 2. Login Endpoint (ไม่ต้องมี Token ก่อน)
         if path == "/api/login":
             req_user = payload.get("username", "").strip()
             req_pass = payload.get("password", "").strip()
             web_user, web_pass = get_web_credentials()
 
-            if req_user == web_user and req_pass == web_pass:
+            if hmac.compare_digest(req_user, web_user) and hmac.compare_digest(req_pass, web_pass):
                 token = create_session()
                 cookie = f"report_session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
                 self._send_json({"ok": True, "token": token, "username": web_user}, set_cookie=cookie)
@@ -210,7 +252,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}, status=401)
             return
 
-        # 2. Logout Endpoint
+        # 3. Logout Endpoint
         if path == "/api/logout":
             token = self._get_auth_token()
             if token and token in WebState.sessions:
@@ -222,6 +264,24 @@ class RequestHandler(BaseHTTPRequestHandler):
         # ทุกคำขอที่เหลือต้องผ่าน Login แล้วเท่านั้น
         if not self._is_authenticated():
             self._send_json({"error": "Unauthorized", "authenticated": False}, status=401)
+            return
+
+        # 4. Discovered: เพิ่มเข้าผู้รับรายงาน
+        if path == "/api/discovered/add-to-recipients":
+            target_id = payload.get("id", "").strip()
+            name = payload.get("name", "").strip()
+            if not target_id:
+                self._send_json({"ok": False, "error": "ไม่มี User ID"}, status=400)
+                return
+            item = add_recipient(target_id, name)
+            self._send_json({"ok": True, "item": item, "recipients": get_recipients(), "discovered": get_discovered()})
+            return
+
+        # 5. Discovered: ลบออกจากรายการค้นพบ
+        if path == "/api/discovered/delete":
+            target_id = payload.get("id", "").strip()
+            ok = remove_discovered(target_id)
+            self._send_json({"ok": ok, "discovered": get_discovered()})
             return
 
         if path == "/api/recipients":
@@ -306,6 +366,9 @@ def run_web_server(db, token, send_times, port=8090):
     WebState.token = token
     WebState.send_times = send_times
 
-    server = ThreadingHTTPServer(("0.0.0.0", port), RequestHandler)
-    log.info("🌐 Web UI พร้อมใช้งานที่ http://0.0.0.0:%d", port)
-    server.serve_forever()
+    try:
+        server = ThreadingHTTPServer(("0.0.0.0", port), RequestHandler)
+        log.info("🌐 Web UI พร้อมใช้งานที่ http://0.0.0.0:%d", port)
+        server.serve_forever()
+    except Exception as e:
+        log.error("❌ ไม่สามารถเริ่ม Web Server บนพอร์ต %d ได้: %s", port, e)

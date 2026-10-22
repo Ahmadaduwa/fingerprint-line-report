@@ -24,11 +24,7 @@
       --radius: 14px;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Prompt', 'Inter', -apple-system, sans-serif;
@@ -39,12 +35,8 @@
       line-height: 1.5;
     }
 
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
+    .container { max-width: 1040px; margin: 0 auto; }
 
-    /* Auth Overlay */
     #loginSection {
       display: none;
       min-height: 80vh;
@@ -77,13 +69,8 @@
       box-shadow: 0 10px 20px var(--primary-glow);
     }
 
-    .login-icon svg {
-      width: 32px;
-      height: 32px;
-      fill: #ffffff;
-    }
+    .login-icon svg { width: 32px; height: 32px; fill: #ffffff; }
 
-    /* Header */
     header {
       display: flex;
       flex-wrap: wrap;
@@ -95,11 +82,7 @@
       border-bottom: 1px solid var(--card-border);
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .brand { display: flex; align-items: center; gap: 12px; }
 
     .logo-icon {
       width: 44px;
@@ -112,30 +95,12 @@
       box-shadow: 0 8px 16px var(--primary-glow);
     }
 
-    .logo-icon svg {
-      width: 26px;
-      height: 26px;
-      fill: #ffffff;
-    }
+    .logo-icon svg { width: 26px; height: 26px; fill: #ffffff; }
+    h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: -0.02em; }
+    .subtitle { font-size: 0.85rem; color: var(--text-muted); }
 
-    h1 {
-      font-size: 1.35rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
 
-    .subtitle {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-
-    /* Badges & Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -156,10 +121,7 @@
       box-shadow: 0 4px 12px var(--primary-glow);
     }
 
-    .btn-primary:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-    }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
 
     .btn-outline {
       background: rgba(255, 255, 255, 0.05);
@@ -167,8 +129,16 @@
       color: var(--text-main);
     }
 
-    .btn-outline:hover {
-      background: rgba(255, 255, 255, 0.1);
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .btn-success-soft {
+      background: rgba(6, 199, 85, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(6, 199, 85, 0.3);
+    }
+    .btn-success-soft:hover {
+      background: var(--primary);
+      color: white;
     }
 
     .btn-danger {
@@ -177,18 +147,9 @@
       border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
-    .btn-danger:hover {
-      background: var(--danger);
-      color: white;
-    }
+    .btn-danger:hover { background: var(--danger); color: white; }
+    .btn-sm { padding: 5px 10px; font-size: 0.775rem; border-radius: 6px; }
 
-    .btn-sm {
-      padding: 5px 10px;
-      font-size: 0.775rem;
-      border-radius: 6px;
-    }
-
-    /* Grid Layout */
     .grid-stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -216,18 +177,8 @@
       justify-content: space-between;
     }
 
-    .stat-val {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text-main);
-    }
-
-    .stat-val span {
-      font-size: 0.9rem;
-      font-weight: 400;
-      color: var(--text-muted);
-      margin-left: 4px;
-    }
+    .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--text-main); }
+    .stat-val span { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); margin-left: 4px; }
 
     .badge-chip {
       display: inline-block;
@@ -246,20 +197,8 @@
       border-color: rgba(6, 199, 85, 0.3);
     }
 
-    /* Form */
-    .form-group {
-      margin-bottom: 16px;
-      text-align: left;
-    }
-
-    .form-label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 500;
-      margin-bottom: 6px;
-      color: var(--text-main);
-    }
-
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; color: var(--text-main); }
     .form-input {
       width: 100%;
       background: rgba(15, 23, 42, 0.6);
@@ -278,19 +217,15 @@
       box-shadow: 0 0 0 3px var(--primary-glow);
     }
 
-    .form-hint {
-      font-size: 0.775rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
+    .form-hint { font-size: 0.775rem; color: var(--text-muted); margin-top: 4px; }
 
-    /* Recipient List */
+    /* Recipient & Discovered Items */
     .recipient-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 14px 16px;
+      padding: 12px 14px;
       background: rgba(15, 23, 42, 0.5);
       border: 1px solid var(--card-border);
       border-radius: 10px;
@@ -298,27 +233,44 @@
       transition: background 0.15s ease;
     }
 
-    .recipient-item:hover {
-      background: rgba(30, 41, 59, 0.9);
-    }
+    .recipient-item:hover { background: rgba(30, 41, 59, 0.9); }
 
     .rec-info {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
     }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .rec-texts { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
     .rec-name {
       font-weight: 600;
-      font-size: 0.95rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-size: 0.925rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .rec-id {
       font-family: 'Courier New', monospace;
-      font-size: 0.775rem;
+      font-size: 0.75rem;
       color: var(--accent);
       background: rgba(56, 189, 248, 0.1);
       padding: 2px 6px;
@@ -327,13 +279,8 @@
       cursor: pointer;
     }
 
-    .rec-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .rec-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-    /* Switch */
     .switch {
       position: relative;
       display: inline-block;
@@ -341,19 +288,12 @@
       height: 22px;
     }
 
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
+    .switch input { opacity: 0; width: 0; height: 0; }
 
     .slider {
       position: absolute;
       cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background-color: rgba(255, 255, 255, 0.15);
       transition: 0.3s;
       border-radius: 22px;
@@ -371,15 +311,9 @@
       border-radius: 50%;
     }
 
-    input:checked + .slider {
-      background-color: var(--primary);
-    }
+    input:checked + .slider { background-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(18px); }
 
-    input:checked + .slider:before {
-      transform: translateX(18px);
-    }
-
-    /* Preview Box */
     .preview-box {
       background: rgba(15, 23, 42, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -388,12 +322,11 @@
       font-size: 0.875rem;
       white-space: pre-wrap;
       color: #e2e8f0;
-      max-height: 280px;
+      max-height: 300px;
       overflow-y: auto;
       font-family: 'Prompt', sans-serif;
     }
 
-    /* Toast */
     #toast {
       position: fixed;
       bottom: 24px;
@@ -422,9 +355,9 @@
 
     .empty-state {
       text-align: center;
-      padding: 32px 16px;
+      padding: 24px 16px;
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
 
     .help-box {
@@ -435,6 +368,16 @@
       border-radius: 8px;
       font-size: 0.8rem;
       color: #cbd5e1;
+    }
+
+    .tag-new {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
     }
   </style>
 </head>
@@ -523,16 +466,35 @@
       <!-- Main Content: 2 Columns -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
         
-        <!-- Left Column: Add Recipient & Recipient List -->
+        <!-- Left Column: Discovered + Add Form + Recipient List -->
         <div>
-          <!-- Add Recipient Form -->
+
+          <!-- ⭐️ DISCOVERED SECTION: คนที่แอดบอทหรือทักมาล่าสุด -->
+          <div class="card" style="border: 1px solid rgba(6, 199, 85, 0.35); background: rgba(6, 199, 85, 0.05); margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h2 style="font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                <span>📥</span> คนที่แอดบอทหรือทักมาล่าสุด
+              </h2>
+              <span class="badge-chip green" id="discoveredBadge">0 คน/กลุ่ม</span>
+            </div>
+            
+            <div id="discoveredList">
+              <div class="empty-state">กำลังตรวจหารายชื่อ...</div>
+            </div>
+
+            <div class="help-box" style="margin-top: 12px; background: rgba(0,0,0,0.2);">
+              💡 <strong>วิธีให้ขึ้นตรงนี้อัตโนมัติ:</strong> ให้ครูหรือกลุ่ม LINE แอดเพื่อนบอท หรือดึงบอทเข้ากลุ่ม แล้วพิมพ์อะไรก็ได้ 1 คำ ระบบจะดึงชื่อ รูป และ ID มารอให้คุณกดเพิ่มตรงนี้ได้ทันทีโดยไม่ต้องก็อปปี้เลยครับ
+            </div>
+          </div>
+
+          <!-- Add Recipient Form (Manual) -->
           <div class="card">
-            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">➕ เพิ่มผู้รับรายงาน LINE</h2>
+            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">➕ เพิ่มด้วยตนเอง (Manual)</h2>
             <form id="addForm" onsubmit="handleAddRecipient(event)">
               <div class="form-group">
                 <label class="form-label" for="targetId">LINE User ID หรือ Group ID *</label>
                 <input class="form-input" id="targetId" placeholder="เช่น U79b78adfc1c2eacfe1a004bc0beea7f1 หรือ C..." required>
-                <div class="form-hint">ขึ้นต้นด้วย U (บุคคล) หรือ C (กลุ่มไลน์) ความยาว 33 ตัวอักษร</div>
+                <div class="form-hint">ขึ้นต้นด้วย U (บุคคล) หรือ C (กลุ่มไลน์)</div>
               </div>
               
               <div class="form-group">
@@ -544,18 +506,11 @@
                 💾 บันทึกผู้รับรายงาน
               </button>
             </form>
-
-            <div class="help-box">
-              💡 <strong>วิธีหา User ID ของตัวเอง:</strong><br>
-              1. เข้า <a href="https://developers.line.biz/console/" target="_blank" style="color: var(--accent);">LINE Developers Console</a><br>
-              2. เลือก Channel ของบอท &gt; แท็บ <strong>Basic settings</strong><br>
-              3. เลื่อนลงดูหัวข้อ <strong>Your user ID</strong> (ขึ้นต้นด้วย U...) แล้ว Copy มาใส่ที่นี่ได้เลยครับ
-            </div>
           </div>
 
           <!-- Recipient List -->
           <div class="card" style="margin-top: 20px;">
-            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">📋 รายชื่อผู้รับรายงาน (<span id="listCount">0</span>)</h2>
+            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">📋 รายชื่อผู้รับรายงานปัจจุบัน (<span id="listCount">0</span>)</h2>
             <div id="recipientList">
               <div class="empty-state">กำลังโหลดรายชื่อ...</div>
             </div>
@@ -565,11 +520,23 @@
         <!-- Right Column: Live Attendance & Preview -->
         <div>
           <div class="card">
-            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">📊 พรีวิวข้อความสรุปที่จะส่งเข้า LINE</h2>
+            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">📊 พรีวิวข้อความสรุปที่จะส่งเข้า LINE</h2>
             <div class="preview-box" id="previewText">กำลังโหลดตัวอย่างข้อความ...</div>
             <div class="form-hint" style="margin-top: 8px;">
               * ข้อความนี้จะถูกส่งอัตโนมัติตามเวลา 09:00 และ 18:00 เข้า LINE ของผู้รับทุกคนที่เปิดใช้งาน (สวิตช์เปิดอยู่)
             </div>
+          </div>
+
+          <!-- Webhook Info Box -->
+          <div class="card" style="margin-top: 20px;">
+            <h2 style="font-size: 1.05rem; margin-bottom: 10px;">🔗 Webhook URL สำหรับรับข้อมูลอัตโนมัติ</h2>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+              ใส่ URL นี้ใน LINE Developers Console &gt; แท็บ Messaging API &gt; Webhook URL:
+            </div>
+            <div class="rec-id" style="font-size: 0.85rem; width: 100%; padding: 8px;" id="webhookUrlDisplay" onclick="copyId(this.innerText)">
+              กำลังตรวจหา URL...
+            </div>
+            <div class="form-hint" style="margin-top: 6px;">คลิกเพื่อคัดลอก (อย่าลืมเปิดสวิตช์ "Use webhook" ใน LINE Console ด้วยนะครับ)</div>
           </div>
         </div>
 
@@ -670,10 +637,86 @@
         document.getElementById("lastRunTime").innerText = data.last_run_time ? "เมื่อ " + data.last_run_time : "--";
         document.getElementById("previewText").innerText = data.preview_text || "ไม่มีข้อมูล";
 
-        renderRecipients(data.recipients);
+        // Webhook URL
+        const host = window.location.origin;
+        document.getElementById("webhookUrlDisplay").innerText = host + "/webhook";
+
+        renderDiscovered(data.discovered || [], data.recipients || []);
+        renderRecipients(data.recipients || []);
       } catch (e) {
         showToast("เชื่อมต่อระบบไม่สำเร็จ: " + e.message, false);
       }
+    }
+
+    function renderDiscovered(discoveredList, recipientsList) {
+      const el = document.getElementById("discoveredList");
+      const existingIds = new Set(recipientsList.map(r => r.id.toLowerCase()));
+
+      // กรองเฉพาะคนที่ยังไม่ได้อยู่ในผู้รับรายงาน
+      const pending = discoveredList.filter(d => !existingIds.has(d.id.toLowerCase()));
+      document.getElementById("discoveredBadge").innerText = `${pending.length} รายการใหม่`;
+
+      if (pending.length === 0) {
+        el.innerHTML = '<div class="empty-state">ยังไม่มีคนแอดมาใหม่ หรือทุกคนถูกเพิ่มเข้ารายการรับรายงานแล้ว</div>';
+        return;
+      }
+
+      el.innerHTML = pending.map(item => {
+        const isGroup = item.id.startsWith("C");
+        const avatarImg = item.picture_url
+          ? `<img src="${item.picture_url}" alt="">`
+          : (isGroup ? '👥' : '👤');
+
+        return `
+          <div class="recipient-item" style="border-color: rgba(6, 199, 85, 0.3);">
+            <div class="rec-info">
+              <div class="avatar">${avatarImg}</div>
+              <div class="rec-texts">
+                <div class="rec-name">
+                  ${escapeHtml(item.name || (isGroup ? 'กลุ่ม LINE' : 'ผู้ใช้งาน'))}
+                  <span class="tag-new">ใหม่</span>
+                </div>
+                <div class="rec-id" onclick="copyId('${item.id}')" title="คลิกเพื่อคัดลอก">${item.id}</div>
+              </div>
+            </div>
+            <div class="rec-actions">
+              <button class="btn btn-success-soft btn-sm" onclick="addFromDiscovered('${item.id}', '${escapeHtml(item.name || '')}')">
+                ➕ เพิ่มคนนี้
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="dismissDiscovered('${item.id}')" title="ละเว้น">
+                ✕
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function addFromDiscovered(id, name) {
+      try {
+        const res = await authFetch("/api/discovered/add-to-recipients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, name })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "เพิ่มไม่สำเร็จ");
+        showToast(`✅ เพิ่ม "${name || id}" เป็นผู้รับรายงานเรียบร้อยแล้ว`);
+        loadStatus();
+      } catch (err) {
+        showToast(err.message, false);
+      }
+    }
+
+    async function dismissDiscovered(id) {
+      try {
+        await authFetch("/api/discovered/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        loadStatus();
+      } catch (e) {}
     }
 
     function renderRecipients(list) {
@@ -681,7 +724,7 @@
       document.getElementById("listCount").innerText = list.length;
       
       if (!list || list.length === 0) {
-        el.innerHTML = '<div class="empty-state">ยังไม่มีผู้รับรายงาน กรุณาเพิ่ม User ID ในฟอร์มด้านบน</div>';
+        el.innerHTML = '<div class="empty-state">ยังไม่มีผู้รับรายงาน กรุณาเลือกจากด้านบนหรือกรอก User ID</div>';
         return;
       }
 
@@ -690,11 +733,11 @@
         return `
           <div class="recipient-item">
             <div class="rec-info">
-              <div class="rec-name">
-                <span>${isGroup ? '👥' : '👤'}</span>
-                <span>${escapeHtml(r.name || 'ผู้ใช้งาน')}</span>
+              <div class="avatar">${isGroup ? '👥' : '👤'}</div>
+              <div class="rec-texts">
+                <div class="rec-name">${escapeHtml(r.name || 'ผู้ใช้งาน')}</div>
+                <div class="rec-id" title="คลิกเพื่อคัดลอก" onclick="copyId('${r.id}')">${r.id}</div>
               </div>
-              <div class="rec-id" title="คลิกเพื่อคัดลอก" onclick="copyId('${r.id}')">${r.id}</div>
             </div>
             <div class="rec-actions">
               <button class="btn btn-outline btn-sm" onclick="testSend('${r.id}')" title="ทดสอบส่งข้อความหาคนนี้">
@@ -814,7 +857,7 @@
     }
 
     checkAuth();
-    setInterval(loadStatus, 30000);
+    setInterval(loadStatus, 15000);
   </script>
 </body>
 </html>

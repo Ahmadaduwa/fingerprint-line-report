@@ -63,3 +63,53 @@ class LineClient:
                 raise RuntimeError(f"LINE {endpoint} error {r.status_code}: {r.text}")
             log.warning("LINE %s ตอบ %d (ครั้งที่ %d): %s", endpoint, r.status_code, attempt + 1, r.text)
         raise RuntimeError(f"LINE {endpoint} ส่งไม่สำเร็จหลังลอง 3 ครั้ง")
+
+
+def get_profile(token, user_id):
+    """ดึงชื่อและรูปโปรไฟล์ของผู้ใช้จาก LINE"""
+    try:
+        r = requests.get(
+            f"https://api.line.me/v2/bot/profile/{user_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5
+        )
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        log.warning("ดึง profile %s ไม่สำเร็จ: %s", user_id, e)
+    return {}
+
+
+def get_group_summary(token, group_id):
+    """ดึงชื่อกลุ่มและรูปกลุ่มจาก LINE"""
+    try:
+        r = requests.get(
+            f"https://api.line.me/v2/bot/group/{group_id}/summary",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5
+        )
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        log.warning("ดึง group summary %s ไม่สำเร็จ: %s", group_id, e)
+    return {}
+
+
+def reply_text(token, reply_token, text):
+    """ตอบกลับข้อความอัตโนมัติผ่าน replyToken (ฟรี ไม่คิดโควต้า push)"""
+    if not reply_token:
+        return
+    try:
+        body = {
+            "replyToken": reply_token,
+            "messages": [{"type": "text", "text": text}]
+        }
+        requests.post(
+            "https://api.line.me/v2/bot/message/reply",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=body,
+            timeout=5
+        )
+    except Exception as e:
+        log.warning("LINE reply ล้มเหลว: %s", e)
+
