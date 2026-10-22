@@ -1,89 +1,193 @@
-"""อ่านข้อมูลจาก DB Synctime (อ่านอย่างเดียว ไม่เขียนอะไรลง DB)"""
+"""
+อ่านข้อมูลจาก DB Synctime ด้วย SQLAlchemy ORM (อ่านอย่างเดียว)
+"""
 import logging
 from collections import defaultdict
 from datetime import timedelta
+from urllib.parse import quote_plus
 
-import pymssql
+from sqlalchemy import create_engine, select, or_
+from sqlalchemy.orm import sessionmaker
 
-from attendance import Person, Shift, parse_date, parse_dt, parse_hm
+from attendance import Person, Shift as ShiftDTO, parse_date, parse_dt, parse_hm
+from models import (
+    Holiday as HolidayModel,
+    Leave as LeaveModel,
+    Level as LevelModel,
+    School as SchoolModel,
+    Shift as ShiftModel,
+    Student as StudentModel,
+    StudentShift as StudentShiftModel,
+    TranLeave as TranLeaveModel,
+    Transcantime as TranscantimeModel,
+)
 
 log = logging.getLogger(__name__)
 
 
 class SynctimeDB:
     def __init__(self, host, port, user, password, database):
-        self.cfg = dict(server=host, port=port, user=user, password=password,
-                        database=database, login_timeout=10, timeout=60, charset="UTF-8")
+        safe_pass = quote_plus(password)
+        db_url = f"mssql+pymssql://{user}:{safe_pass}@{host}:{port}/{database}?charset=utf8"
+        self.engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            connect_args={"login_timeout": 10, "timeout": 60}
+        )
+        self.Session = sessionmaker(bind=self.engine)
 
-    def _rows(self, sql, params=None):
-        with pymssql.connect(**self.cfg) as conn:
-            with conn.cursor(as_dict=True) as cur:
-                cur.execute(sql, params or ())
-                return cur.fetchall()
+    def _session(self):
+        return self.Session()
 
     def school(self):
-        rows = self._rows("SELECT TOP 1 * FROM School WHERE ISNULL(active, 1) = 1 ORDER BY id")
-        return rows[0] if rows else {}
+        with self._session() as session:
+            stmt = (
+                select(SchoolModel)
+                .where(or_(SchoolModel.active == 1, SchoolModel.active.is_(None)))
+                .order_by(SchoolModel.id)
+                .limit(1)
+            )
+            row = session.scalars(stmt).first()
+            if not row:
+                return {}
+            return {
+                "id": row.id,
+                "schoolcode": row.schoolcode,
+                "schoolname": row.schoolname,
+                "starttime": row.starttime,
+                "endtime": row.endtime,
+                "monwork": row.monwork,
+                "tuework": row.tuework,
+                "wedwork": row.wedwork,
+                "thuwork": row.thuwork,
+                "friwork": row.friwork,
+                "satwork": row.satwork,
+                "sunwork": row.sunwork,
+                "active": row.active,
+            }
 
     def people(self, levels=None):
-        rows = self._rows(
-            "SELECT enrollnumber, studentcode, studentname, levelcode, shiftcode "
-            "FROM Student WHERE ISNULL(active, 1) = 1 AND ISNULL(enrollnumber, 0) > 0")
-        people = [Person(enroll=int(r["enrollnumber"]), code=(r["studentcode"] or "").strip(),
-                         name=(r["studentname"] or "").strip() or str(r["enrollnumber"]),
-                         level=r["levelcode"], shift_code=r["shiftcode"]) for r in rows]
-        if levels:
-            people = [p for p in people if p.level in levels]
-        return people
+        with self._session() as session:
+            stmt = select(StudentModel).where(
+                or_(StudentModel.active == 1, StudentModel.active.is_(None)),
+                StudentModel.enrollnumber.is_not(None),
+                StudentModel.enrollnumber > 0
+            )
+            if levels:
+                stmt = stmt.where(StudentModel.levelcode.in_(levels))
+
+            students = session.scalars(stmt).all()
+            return [
+                Person(
+                    enroll=int(s.enrollnumber),
+                    code=(s.studentcode or "").strip(),
+                    name=(s.studentname or "").strip() or str(s.enrollnumber),
+                    level=s.levelcode,
+                    shift_code=s.shiftcode
+                )
+                for s in students
+            ]
 
     def level_names(self):
-        return {r["levelcode"]: r["levelname"] for r in self._rows("SELECT levelcode, levelname FROM Level")}
+        with self._session() as session:
+            levels = session.scalars(select(LevelModel)).all()
+            return {l.levelcode: l.levelname for l in levels}
 
     def shifts(self):
-        return {r["shiftcode"]: Shift(r["shiftcode"], r["shiftname"] or r["shiftcode"],
-                                      parse_hm(r["starttime"]), parse_hm(r["endtime"]))
-                for r in self._rows("SELECT shiftcode, shiftname, starttime, endtime FROM Shift")}
+        with self._session() as session:
+            shifts = session.scalars(select(ShiftModel)).all()
+            return {
+                s.shiftcode: ShiftDTO(
+                    s.shiftcode,
+                    s.shiftname or s.shiftcode,
+                    parse_hm(s.starttime),
+                    parse_hm(s.endtime)
+                )
+                for s in shifts
+            }
 
     def scans(self, day):
-        """
-        เวลาสแกนของวัน day แยกตาม enrollnumber
-        datetimescan เป็น text จึงกรองใน SQL ด้วย adddate (เวลาที่ดึงเข้า DB) ไว้ก่อน แล้วค่อยกรองวันจริงใน Python
-        """
-        rows = self._rows(
-            "SELECT enrollnumber, datetimescan FROM Transcantime WHERE adddate >= %s",
-            (day - timedelta(days=1),))
-        out, bad = defaultdict(list), 0
-        for r in rows:
-            dt = parse_dt(r["datetimescan"])
-            if dt is None:
-                bad += 1
-                continue
-            if dt.date() == day:
-                out[int(r["enrollnumber"])].append(dt)
-        if bad:
-            log.warning("แปลง datetimescan ไม่ได้ %d แถว (ดูด้วย: python main.py --check)", bad)
-        return out
+        with self._session() as session:
+            cutoff = day - timedelta(days=1)
+            stmt = select(
+                TranscantimeModel.enrollnumber,
+                TranscantimeModel.datetimescan
+            ).where(TranscantimeModel.adddate >= cutoff)
+
+            rows = session.execute(stmt).all()
+            out, bad = defaultdict(list), 0
+            for enrollnumber, datetimescan in rows:
+                dt = parse_dt(datetimescan)
+                if dt is None:
+                    bad += 1
+                    continue
+                if dt.date() == day and enrollnumber is not None:
+                    out[int(enrollnumber)].append(dt)
+
+            if bad:
+                log.warning("แปลง datetimescan ไม่ได้ %d แถว (ดูด้วย: python main.py --check)", bad)
+            return out
 
     def daily_shift(self, day):
-        rows = self._rows("SELECT enrollnumber, tdate, shiftcode FROM StudentShift")
-        return {int(r["enrollnumber"]): r["shiftcode"] for r in rows if parse_date(r["tdate"]) == day}
+        with self._session() as session:
+            rows = session.execute(
+                select(StudentShiftModel.enrollnumber, StudentShiftModel.tdate, StudentShiftModel.shiftcode)
+            ).all()
+            return {
+                int(enroll): shift
+                for enroll, tdate, shift in rows
+                if enroll and parse_date(tdate) == day
+            }
 
     def leaves(self, day):
-        names = {r["leavecode"]: r["leavename"] for r in self._rows("SELECT leavecode, leavename FROM Leave")}
-        rows = self._rows("SELECT studentcode, leavedate, leavecode FROM TranLeave")
-        return {(r["studentcode"] or "").strip(): names.get(r["leavecode"]) or r["leavecode"] or "ลา"
-                for r in rows if parse_date(r["leavedate"]) == day}
+        with self._session() as session:
+            leaves_master = session.scalars(select(LeaveModel)).all()
+            names = {l.leavecode: l.leavename for l in leaves_master}
+
+            tran_leaves = session.scalars(select(TranLeaveModel)).all()
+            return {
+                (t.studentcode or "").strip(): names.get(t.leavecode) or t.leavecode or "ลา"
+                for t in tran_leaves
+                if parse_date(t.leavedate) == day
+            }
 
     def holidays(self):
-        return {parse_date(r["holdate"]): r["holreason"] or "วันหยุด"
-                for r in self._rows("SELECT holdate, holreason FROM Holiday")}
+        with self._session() as session:
+            hols = session.scalars(select(HolidayModel)).all()
+            return {
+                parse_date(h.holdate): h.holreason or "วันหยุด"
+                for h in hols
+                if parse_date(h.holdate)
+            }
 
     def check(self):
-        """สำหรับตรวจรูปแบบข้อมูลจริง: ตัวอย่าง datetimescan และจำนวนที่แปลงไม่ได้"""
-        rows = self._rows("SELECT TOP 2000 datetimescan FROM Transcantime ORDER BY id DESC")
-        samples = [r["datetimescan"] for r in rows[:10]]
-        bad = [r["datetimescan"] for r in rows if parse_dt(r["datetimescan"]) is None]
-        tdates = [r["tdate"] for r in self._rows("SELECT TOP 5 tdate FROM StudentShift ORDER BY id DESC")]
-        ldates = [r["leavedate"] for r in self._rows("SELECT TOP 5 leavedate FROM TranLeave ORDER BY id DESC")]
-        return dict(scan_rows=len(rows), scan_samples=samples, scan_unparsed=bad[:10],
-                    unparsed_count=len(bad), studentshift_tdate=tdates, tranleave_leavedate=ldates)
+        with self._session() as session:
+            scans = session.scalars(
+                select(TranscantimeModel.datetimescan)
+                .order_by(TranscantimeModel.id.desc())
+                .limit(2000)
+            ).all()
+            samples = list(scans[:10])
+            bad = [s for s in scans if parse_dt(s) is None]
+
+            tdates = list(session.scalars(
+                select(StudentShiftModel.tdate)
+                .order_by(StudentShiftModel.id.desc())
+                .limit(5)
+            ).all())
+
+            ldates = list(session.scalars(
+                select(TranLeaveModel.leavedate)
+                .order_by(TranLeaveModel.id.desc())
+                .limit(5)
+            ).all())
+
+            return dict(
+                scan_rows=len(scans),
+                scan_samples=samples,
+                scan_unparsed=bad[:10],
+                unparsed_count=len(bad),
+                studentshift_tdate=tdates,
+                tranleave_leavedate=ldates
+            )
