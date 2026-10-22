@@ -1,0 +1,29 @@
+# Environment variables & secrets (CRITICAL: DO NOT COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+line-report/.env
+line-report/.env.*
+!line-report/.env.example
+
+# Runtime persistent data
+data/
+line-report/data/
+*.json.tmp
+*.log
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS files
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db

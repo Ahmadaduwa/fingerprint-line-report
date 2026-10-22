@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE Report - ระบบสรุปเวลาสแกนนิ้วเข้างาน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #06c755;
+      --primary-hover: #05b34c;
+      --primary-glow: rgba(6, 199, 85, 0.25);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --accent: #38bdf8;
+      --warning: #f59e0b;
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Prompt', 'Inter', -apple-system, sans-serif;
+      background: radial-gradient(circle at 15% 15%, #1e1b4b 0%, #0f172a 50%, #030712 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 24px 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    /* Auth Overlay */
+    #loginSection {
+      display: none;
+      min-height: 80vh;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    .login-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #06c755 0%, #009944 100%);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 20px var(--primary-glow);
+    }
+
+    .login-icon svg {
+      width: 32px;
+      height: 32px;
+      fill: #ffffff;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 24px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #06c755 0%, #009944 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 16px var(--primary-glow);
+    }
+
+    .logo-icon svg {
+      width: 26px;
+      height: 26px;
+      fill: #ffffff;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* Badges & Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 0.775rem;
+      border-radius: 6px;
+    }
+
+    /* Grid Layout */
+    .grid-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stat-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-val span {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .badge-chip {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      font-weight: 500;
+    }
+
+    .badge-chip.green {
+      background: rgba(6, 199, 85, 0.15);
+      color: #4ade80;
+      border-color: rgba(6, 199, 85, 0.3);
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .form-hint {
+      font-size: 0.775rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Recipient List */
+    .recipient-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      transition: background 0.15s ease;
+    }
+
+    .recipient-item:hover {
+      background: rgba(30, 41, 59, 0.9);
+    }
+
+    .rec-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .rec-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rec-id {
+      font-family: 'Courier New', monospace;
+      font-size: 0.775rem;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      width: fit-content;
+      cursor: pointer;
+    }
+
+    .rec-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.15);
+      transition: 0.3s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(18px);
+    }
+
+    /* Preview Box */
+    .preview-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+      color: #e2e8f0;
+      max-height: 280px;
+      overflow-y: auto;
+      font-family: 'Prompt', sans-serif;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+      font-size: 0.875rem;
+      animation: slideUp 0.3s ease;
+    }
+
+    #toast.success { border-left: 4px solid var(--primary); }
+    #toast.error { border-left: 4px solid var(--danger); }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .help-box {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: rgba(56, 189, 248, 0.05);
+      border: 1px dashed rgba(56, 189, 248, 0.25);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- 1. LOGIN SCREEN -->
+    <div id="loginSection">
+      <div class="login-card">
+        <div class="login-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 5.91 2 10.74c0 4.3 3.6 7.9 8.47 8.61.33.07.78.22.89.51.1.26.07.67.03.93l-.15.93c-.05.29-.22 1.13.99.62 1.21-.51 6.54-3.85 8.92-6.59C22.42 14.18 22 10.74 22 10.74 22 5.91 17.52 2 12 2z"/>
+          </svg>
+        </div>
+        <h2 style="font-size: 1.25rem; margin-bottom: 6px;">เข้าสู่ระบบจัดการ LINE</h2>
+        <div class="subtitle" style="margin-bottom: 20px;">ระบบสรุปเวลาสแกนนิ้ว HIP TIME</div>
+
+        <form onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginUser">ชื่อผู้ใช้งาน</label>
+            <input class="form-input" id="loginUser" required placeholder="admin" autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPass">รหัสผ่าน</label>
+            <input type="password" class="form-input" id="loginPass" required placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px;">
+            🔐 เข้าสู่ระบบ
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 2. DASHBOARD MAIN (เมื่อ Login แล้ว) -->
+    <div id="mainDashboard" style="display: none;">
+      <!-- Header -->
+      <header>
+        <div class="brand">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 5.91 2 10.74c0 4.3 3.6 7.9 8.47 8.61.33.07.78.22.89.51.1.26.07.67.03.93l-.15.93c-.05.29-.22 1.13.99.62 1.21-.51 6.54-3.85 8.92-6.59C22.42 14.18 22 10.74 22 10.74 22 5.91 17.52 2 12 2z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 id="companyName">ระบบสรุปเวลาเข้างานส่ง LINE</h1>
+            <div class="subtitle" id="subtitleDate">กำลังโหลดข้อมูล...</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" onclick="loadStatus()">🔄 รีเฟรช</button>
+          <button class="btn btn-primary" onclick="sendNow()">🚀 ส่งรายงานตอนนี้</button>
+          <button class="btn btn-outline" onclick="handleLogout()" title="ออกจากระบบ" style="color: #fca5a5;">🚪 ออกจากระบบ</button>
+        </div>
+      </header>
+
+      <!-- Stats Cards -->
+      <div class="grid-stats">
+        <div class="card">
+          <div class="card-title">
+            <span>เวลาส่งอัตโนมัติ</span>
+            <span class="badge-chip green" id="statusBadge">Active</span>
+          </div>
+          <div class="stat-val" id="sendTimesDisplay">--:--</div>
+          <div class="form-hint" id="nextRunDisplay">รอบถัดไป: ...</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>ผู้รับรายงานที่เปิดใช้งาน</span>
+            <span class="badge-chip" id="recCountBadge">0 คน/กลุ่ม</span>
+          </div>
+          <div class="stat-val" id="activeRecCount">0 <span>รายการ</span></div>
+          <div class="form-hint">ส่งเฉพาะผู้ที่ระบุ ID (ไม่ Broadcast)</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>สถานะการส่งล่าสุด</span>
+          </div>
+          <div class="stat-val" style="font-size: 1.15rem;" id="lastRunStatus">ยังไม่เคยส่ง</div>
+          <div class="form-hint" id="lastRunTime">--</div>
+        </div>
+      </div>
+
+      <!-- Main Content: 2 Columns -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+        
+        <!-- Left Column: Add Recipient & Recipient List -->
+        <div>
+          <!-- Add Recipient Form -->
+          <div class="card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">➕ เพิ่มผู้รับรายงาน LINE</h2>
+            <form id="addForm" onsubmit="handleAddRecipient(event)">
+              <div class="form-group">
+                <label class="form-label" for="targetId">LINE User ID หรือ Group ID *</label>
+                <input class="form-input" id="targetId" placeholder="เช่น U79b78adfc1c2eacfe1a004bc0beea7f1 หรือ C..." required>
+                <div class="form-hint">ขึ้นต้นด้วย U (บุคคล) หรือ C (กลุ่มไลน์) ความยาว 33 ตัวอักษร</div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" for="targetName">ชื่อ / ตำแหน่ง (ระบุช่วยจำ)</label>
+                <input class="form-input" id="targetName" placeholder="เช่น ผอ. สมชาย, ครูเวร, หรือ กลุ่มครู">
+              </div>
+
+              <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                💾 บันทึกผู้รับรายงาน
+              </button>
+            </form>
+
+            <div class="help-box">
+              💡 <strong>วิธีหา User ID ของตัวเอง:</strong><br>
+              1. เข้า <a href="https://developers.line.biz/console/" target="_blank" style="color: var(--accent);">LINE Developers Console</a><br>
+              2. เลือก Channel ของบอท &gt; แท็บ <strong>Basic settings</strong><br>
+              3. เลื่อนลงดูหัวข้อ <strong>Your user ID</strong> (ขึ้นต้นด้วย U...) แล้ว Copy มาใส่ที่นี่ได้เลยครับ
+            </div>
+          </div>
+
+          <!-- Recipient List -->
+          <div class="card" style="margin-top: 20px;">
+            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">📋 รายชื่อผู้รับรายงาน (<span id="listCount">0</span>)</h2>
+            <div id="recipientList">
+              <div class="empty-state">กำลังโหลดรายชื่อ...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Live Attendance & Preview -->
+        <div>
+          <div class="card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">📊 พรีวิวข้อความสรุปที่จะส่งเข้า LINE</h2>
+            <div class="preview-box" id="previewText">กำลังโหลดตัวอย่างข้อความ...</div>
+            <div class="form-hint" style="margin-top: 8px;">
+              * ข้อความนี้จะถูกส่งอัตโนมัติตามเวลา 09:00 และ 18:00 เข้า LINE ของผู้รับทุกคนที่เปิดใช้งาน (สวิตช์เปิดอยู่)
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    let authToken = localStorage.getItem("report_token") || "";
+
+    function showToast(msg, isSuccess = true) {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.className = isSuccess ? "success" : "error";
+      toast.style.display = "flex";
+      setTimeout(() => { toast.style.display = "none"; }, 3500);
+    }
+
+    function authFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      if (authToken) {
+        options.headers["Authorization"] = "Bearer " + authToken;
+      }
+      return fetch(url, options);
+    }
+
+    async function checkAuth() {
+      try {
+        const res = await authFetch("/api/me");
+        const data = await res.json();
+        if (data.authenticated) {
+          document.getElementById("loginSection").style.display = "none";
+          document.getElementById("mainDashboard").style.display = "block";
+          loadStatus();
+        } else {
+          document.getElementById("loginSection").style.display = "flex";
+          document.getElementById("mainDashboard").style.display = "none";
+        }
+      } catch (e) {
+        document.getElementById("loginSection").style.display = "flex";
+        document.getElementById("mainDashboard").style.display = "none";
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById("loginUser").value.trim();
+      const password = document.getElementById("loginPass").value.trim();
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "เข้าสู่ระบบไม่สำเร็จ");
+
+        authToken = data.token;
+        localStorage.setItem("report_token", authToken);
+        showToast("เข้าสู่ระบบสำเร็จ!");
+        checkAuth();
+      } catch (err) {
+        showToast(err.message, false);
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await authFetch("/api/logout", { method: "POST" });
+      } catch (e) {}
+      authToken = "";
+      localStorage.removeItem("report_token");
+      showToast("ออกจากระบบแล้ว");
+      checkAuth();
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await authFetch("/api/status");
+        if (res.status === 401) {
+          checkAuth();
+          return;
+        }
+        if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
+        const data = await res.json();
+        
+        document.getElementById("companyName").innerText = data.company_name;
+        document.getElementById("subtitleDate").innerText = data.today_thai;
+        document.getElementById("sendTimesDisplay").innerText = data.send_times.join(", ") + " น.";
+        document.getElementById("nextRunDisplay").innerText = "รอบถัดไป: " + (data.next_run || "ไม่มี");
+        document.getElementById("activeRecCount").innerHTML = `${data.active_count} <span>คน/กลุ่ม</span>`;
+        document.getElementById("recCountBadge").innerText = `${data.active_count} เปิดใช้งาน`;
+        document.getElementById("lastRunStatus").innerText = data.last_run_status;
+        document.getElementById("lastRunTime").innerText = data.last_run_time ? "เมื่อ " + data.last_run_time : "--";
+        document.getElementById("previewText").innerText = data.preview_text || "ไม่มีข้อมูล";
+
+        renderRecipients(data.recipients);
+      } catch (e) {
+        showToast("เชื่อมต่อระบบไม่สำเร็จ: " + e.message, false);
+      }
+    }
+
+    function renderRecipients(list) {
+      const el = document.getElementById("recipientList");
+      document.getElementById("listCount").innerText = list.length;
+      
+      if (!list || list.length === 0) {
+        el.innerHTML = '<div class="empty-state">ยังไม่มีผู้รับรายงาน กรุณาเพิ่ม User ID ในฟอร์มด้านบน</div>';
+        return;
+      }
+
+      el.innerHTML = list.map(r => {
+        const isGroup = r.id.startsWith("C");
+        return `
+          <div class="recipient-item">
+            <div class="rec-info">
+              <div class="rec-name">
+                <span>${isGroup ? '👥' : '👤'}</span>
+                <span>${escapeHtml(r.name || 'ผู้ใช้งาน')}</span>
+              </div>
+              <div class="rec-id" title="คลิกเพื่อคัดลอก" onclick="copyId('${r.id}')">${r.id}</div>
+            </div>
+            <div class="rec-actions">
+              <button class="btn btn-outline btn-sm" onclick="testSend('${r.id}')" title="ทดสอบส่งข้อความหาคนนี้">
+                ✉️ ทดสอบ
+              </button>
+              <label class="switch" title="เปิด/ปิดการรับรายงาน">
+                <input type="checkbox" ${r.active ? 'checked' : ''} onchange="toggleActive('${r.id}', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <button class="btn btn-danger btn-sm" onclick="deleteRecipient('${r.id}', '${escapeHtml(r.name || '')}')" title="ลบ">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function handleAddRecipient(e) {
+      e.preventDefault();
+      const id = document.getElementById("targetId").value.trim();
+      const name = document.getElementById("targetName").value.trim();
+
+      try {
+        const res = await authFetch("/api/recipients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, name })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "เกิดข้อผิดพลาด");
+
+        showToast("เพิ่มผู้รับรายงานเรียบร้อยแล้ว");
+        document.getElementById("targetId").value = "";
+        document.getElementById("targetName").value = "";
+        loadStatus();
+      } catch (err) {
+        showToast(err.message, false);
+      }
+    }
+
+    async function toggleActive(id, active) {
+      try {
+        const res = await authFetch("/api/recipients/toggle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, active })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error("เปลี่ยนสถานะไม่สำเร็จ");
+        showToast(active ? "เปิดรับรายงานแล้ว" : "ปิดรับรายงานชั่วคราวแล้ว");
+        loadStatus();
+      } catch (err) {
+        showToast(err.message, false);
+      }
+    }
+
+    async function deleteRecipient(id, name) {
+      if (!confirm(`ต้องการลบ "${name || id}" ออกจากรายชื่อผู้รับรายงานใช่หรือไม่?`)) return;
+      try {
+        const res = await authFetch("/api/recipients/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error("ลบไม่สำเร็จ");
+        showToast("ลบผู้รับเรียบร้อยแล้ว");
+        loadStatus();
+      } catch (err) {
+        showToast(err.message, false);
+      }
+    }
+
+    async function testSend(id) {
+      try {
+        showToast("กำลังส่งข้อความทดสอบ...", true);
+        const res = await authFetch("/api/test-send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "ส่งไม่สำเร็จ");
+        showToast("✅ ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว!");
+      } catch (err) {
+        showToast("ส่งไม่สำเร็จ: " + err.message, false);
+      }
+    }
+
+    async function sendNow() {
+      if (!confirm("ต้องการส่งสรุปการมาทำงานเข้า LINE ของผู้รับทุกคนตอนนี้ทันทีใช่หรือไม่?")) return;
+      try {
+        showToast("กำลังส่งรายงานสรุป...", true);
+        const res = await authFetch("/api/send-now", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "ส่งไม่สำเร็จ");
+        showToast("✅ " + data.message);
+        loadStatus();
+      } catch (err) {
+        showToast("ส่งไม่สำเร็จ: " + err.message, false);
+      }
+    }
+
+    function copyId(id) {
+      navigator.clipboard.writeText(id);
+      showToast("คัดลอก ID แล้ว: " + id);
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    checkAuth();
+    setInterval(loadStatus, 30000);
+  </script>
+</body>
+</html>
