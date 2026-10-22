@@ -36,6 +36,11 @@ class TestRecipients(unittest.TestCase):
         self.assertEqual(len(all_r), 1)
         self.assertEqual(get_active_target_ids(), [uid])
 
+    def test_sanitization_xss_in_name(self):
+        uid = "U79b78adfc1c2eacfe1a004bc0beea7f1"
+        res = add_recipient(uid, "<script>alert('xss')</script>")
+        self.assertEqual(res["name"], "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;")
+
     def test_invalid_id(self):
         with self.assertRaises(ValueError):
             add_recipient("invalid-id", "Test")

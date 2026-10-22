@@ -7,6 +7,8 @@ import logging
 import os
 from datetime import datetime
 
+from sanitizer import is_valid_target_id, sanitize_text, sanitize_url, validate_target_id
+
 log = logging.getLogger(__name__)
 
 DATA_DIR = os.environ.get("DATA_DIR", "/app/data")
@@ -39,28 +41,33 @@ def save_discovered(items):
 
 
 def record_discovered(target_id: str, name: str = "", target_type: str = "user", picture_url: str = ""):
-    target_id = target_id.strip()
-    if not target_id:
+    if not is_valid_target_id(target_id):
         return None
+
+    cleaned_id = validate_target_id(target_id)
+    default_name = "กลุ่ม" if target_type == "group" else "ผู้ใช้งาน"
+    cleaned_name = sanitize_text(name, max_length=80) or default_name
+    cleaned_pic = sanitize_url(picture_url)
+    cleaned_type = "group" if target_type == "group" else "user"
 
     items = get_discovered()
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     for item in items:
-        if item["id"].lower() == target_id.lower():
-            if name:
-                item["name"] = name
-            if picture_url:
-                item["picture_url"] = picture_url
+        if item["id"].lower() == cleaned_id.lower():
+            if cleaned_name:
+                item["name"] = cleaned_name
+            if cleaned_pic:
+                item["picture_url"] = cleaned_pic
             item["last_seen"] = now_str
             save_discovered(items)
             return item
 
     new_item = {
-        "id": target_id,
-        "name": name or ("กลุ่ม" if target_type == "group" else "ผู้ใช้งาน"),
-        "type": target_type,
-        "picture_url": picture_url or "",
+        "id": cleaned_id,
+        "name": cleaned_name,
+        "type": cleaned_type,
+        "picture_url": cleaned_pic,
         "first_seen": now_str,
         "last_seen": now_str,
     }
@@ -73,8 +80,10 @@ def record_discovered(target_id: str, name: str = "", target_type: str = "user",
 
 
 def remove_discovered(target_id: str):
+    if not is_valid_target_id(target_id):
+        return False
     items = get_discovered()
-    filtered = [i for i in items if i["id"].lower() != target_id.lower()]
+    filtered = [i for i in items if i["id"].lower() != target_id.strip().lower()]
     if len(filtered) != len(items):
         save_discovered(filtered)
         return True

@@ -4,25 +4,22 @@
 import json
 import logging
 import os
-import re
 from datetime import datetime
+
+from sanitizer import is_valid_target_id, sanitize_text, validate_target_id
 
 log = logging.getLogger(__name__)
 
 DATA_DIR = os.environ.get("DATA_DIR", "/app/data")
 DATA_FILE = os.path.join(DATA_DIR, "recipients.json")
 
-# รูปแบบ ID ของ LINE: U (User), C (Group), R (Room) ตามด้วย hex 32 ตัว
-ID_PATTERN = re.compile(r"^[UCR][a-f0-9]{32}$", re.IGNORECASE)
-
 
 def ensure_data_file():
     os.makedirs(DATA_DIR, exist_ok=True)
     if not os.path.exists(DATA_FILE):
         initial = []
-        # Fallback จาก env ถ้ามี
         default_id = os.environ.get("LINE_TARGET_ID") or os.environ.get("LINE_TO")
-        if default_id and ID_PATTERN.match(default_id.strip()):
+        if default_id and is_valid_target_id(default_id.strip()):
             initial.append({
                 "id": default_id.strip(),
                 "name": "ผู้ดูแลระบบ (Admin)",
@@ -56,23 +53,21 @@ def get_active_target_ids():
 
 
 def add_recipient(target_id: str, name: str = ""):
-    target_id = target_id.strip()
-    name = name.strip() or ("กลุ่ม" if target_id.startswith("C") else "ผู้ใช้งาน")
-    
-    if not ID_PATTERN.match(target_id):
-        raise ValueError("รูปแบบ ID ไม่ถูกต้อง (ต้องขึ้นต้นด้วย U หรือ C หรือ R ตามด้วยรหัส 32 ตัวอักษร)")
+    target_id = validate_target_id(target_id)
+    default_fallback = "กลุ่ม" if target_id.startswith("C") else "ผู้ใช้งาน"
+    cleaned_name = sanitize_text(name, max_length=80) or default_fallback
 
     recipients = get_recipients()
     for r in recipients:
         if r["id"].lower() == target_id.lower():
-            r["name"] = name
+            r["name"] = cleaned_name
             r["active"] = True
             save_recipients(recipients)
             return r
 
     new_item = {
         "id": target_id,
-        "name": name,
+        "name": cleaned_name,
         "active": True,
         "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
@@ -82,8 +77,10 @@ def add_recipient(target_id: str, name: str = ""):
 
 
 def remove_recipient(target_id: str):
+    if not is_valid_target_id(target_id):
+        return False
     recipients = get_recipients()
-    filtered = [r for r in recipients if r["id"].lower() != target_id.lower()]
+    filtered = [r for r in recipients if r["id"].lower() != target_id.strip().lower()]
     if len(filtered) != len(recipients):
         save_recipients(filtered)
         return True
@@ -91,10 +88,12 @@ def remove_recipient(target_id: str):
 
 
 def toggle_recipient(target_id: str, active: bool):
+    if not is_valid_target_id(target_id):
+        return False
     recipients = get_recipients()
     found = False
     for r in recipients:
-        if r["id"].lower() == target_id.lower():
+        if r["id"].lower() == target_id.strip().lower():
             r["active"] = bool(active)
             found = True
             break

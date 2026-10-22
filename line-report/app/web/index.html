@@ -641,8 +641,10 @@
         const host = window.location.origin;
         document.getElementById("webhookUrlDisplay").innerText = host + "/webhook";
 
-        renderDiscovered(data.discovered || [], data.recipients || []);
-        renderRecipients(data.recipients || []);
+        window._currentDiscovered = data.discovered || [];
+        window._currentRecipients = data.recipients || [];
+        renderDiscovered(window._currentDiscovered, window._currentRecipients);
+        renderRecipients(window._currentRecipients);
       } catch (e) {
         showToast("เชื่อมต่อระบบไม่สำเร็จ: " + e.message, false);
       }
@@ -663,8 +665,9 @@
 
       el.innerHTML = pending.map(item => {
         const isGroup = item.id.startsWith("C");
-        const avatarImg = item.picture_url
-          ? `<img src="${item.picture_url}" alt="">`
+        const safePic = (item.picture_url && item.picture_url.startsWith("http")) ? item.picture_url : "";
+        const avatarImg = safePic
+          ? `<img src="${escapeHtml(safePic)}" alt="">`
           : (isGroup ? '👥' : '👤');
 
         return `
@@ -676,11 +679,11 @@
                   ${escapeHtml(item.name || (isGroup ? 'กลุ่ม LINE' : 'ผู้ใช้งาน'))}
                   <span class="tag-new">ใหม่</span>
                 </div>
-                <div class="rec-id" onclick="copyId('${item.id}')" title="คลิกเพื่อคัดลอก">${item.id}</div>
+                <div class="rec-id" onclick="copyId('${item.id}')" title="คลิกเพื่อคัดลอก">${escapeHtml(item.id)}</div>
               </div>
             </div>
             <div class="rec-actions">
-              <button class="btn btn-success-soft btn-sm" onclick="addFromDiscovered('${item.id}', '${escapeHtml(item.name || '')}')">
+              <button class="btn btn-success-soft btn-sm" onclick="addFromDiscovered('${item.id}')">
                 ➕ เพิ่มคนนี้
               </button>
               <button class="btn btn-outline btn-sm" onclick="dismissDiscovered('${item.id}')" title="ละเว้น">
@@ -692,7 +695,9 @@
       }).join('');
     }
 
-    async function addFromDiscovered(id, name) {
+    async function addFromDiscovered(id) {
+      const item = (window._currentDiscovered || []).find(d => d.id === id);
+      const name = item ? item.name : "";
       try {
         const res = await authFetch("/api/discovered/add-to-recipients", {
           method: "POST",
@@ -736,7 +741,7 @@
               <div class="avatar">${isGroup ? '👥' : '👤'}</div>
               <div class="rec-texts">
                 <div class="rec-name">${escapeHtml(r.name || 'ผู้ใช้งาน')}</div>
-                <div class="rec-id" title="คลิกเพื่อคัดลอก" onclick="copyId('${r.id}')">${r.id}</div>
+                <div class="rec-id" title="คลิกเพื่อคัดลอก" onclick="copyId('${r.id}')">${escapeHtml(r.id)}</div>
               </div>
             </div>
             <div class="rec-actions">
@@ -747,7 +752,7 @@
                 <input type="checkbox" ${r.active ? 'checked' : ''} onchange="toggleActive('${r.id}', this.checked)">
                 <span class="slider"></span>
               </label>
-              <button class="btn btn-danger btn-sm" onclick="deleteRecipient('${r.id}', '${escapeHtml(r.name || '')}')" title="ลบ">
+              <button class="btn btn-danger btn-sm" onclick="deleteRecipient('${r.id}')" title="ลบ">
                 🗑️
               </button>
             </div>
@@ -795,7 +800,9 @@
       }
     }
 
-    async function deleteRecipient(id, name) {
+    async function deleteRecipient(id) {
+      const item = (window._currentRecipients || []).find(r => r.id === id);
+      const name = item ? item.name : id;
       if (!confirm(`ต้องการลบ "${name || id}" ออกจากรายชื่อผู้รับรายงานใช่หรือไม่?`)) return;
       try {
         const res = await authFetch("/api/recipients/delete", {

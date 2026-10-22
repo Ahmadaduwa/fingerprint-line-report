@@ -13,6 +13,7 @@ from discovered import get_discovered, record_discovered, remove_discovered
 from line_api import get_group_summary, get_profile, reply_text
 from recipients import add_recipient, get_active_target_ids, get_recipients, remove_recipient, toggle_recipient
 from report import thai_date
+from sanitizer import is_valid_target_id, sanitize_message, sanitize_text
 
 log = logging.getLogger("line-web")
 
@@ -211,7 +212,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
                 if src_type == "user":
                     user_id = source.get("userId")
-                    if user_id:
+                    if user_id and is_valid_target_id(user_id):
                         prof = get_profile(WebState.token, user_id)
                         display_name = prof.get("displayName") or "ผู้ใช้งาน LINE"
                         pic = prof.get("pictureUrl") or ""
@@ -224,7 +225,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                             )
                 elif src_type == "group":
                     group_id = source.get("groupId")
-                    if group_id:
+                    if group_id and is_valid_target_id(group_id):
                         grp = get_group_summary(WebState.token, group_id)
                         group_name = grp.get("groupName") or "กลุ่ม LINE"
                         pic = grp.get("pictureUrl") or ""
@@ -240,8 +241,13 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # 2. Login Endpoint (ไม่ต้องมี Token ก่อน)
         if path == "/api/login":
-            req_user = payload.get("username", "").strip()
-            req_pass = payload.get("password", "").strip()
+            raw_user = payload.get("username", "")
+            raw_pass = payload.get("password", "")
+            if not isinstance(raw_user, str) or not isinstance(raw_pass, str):
+                self._send_json({"ok": False, "error": "รูปแบบข้อมูลไม่ถูกต้อง"}, status=400)
+                return
+            req_user = raw_user.strip()[:100]
+            req_pass = raw_pass.strip()[:100]
             web_user, web_pass = get_web_credentials()
 
             if hmac.compare_digest(req_user, web_user) and hmac.compare_digest(req_pass, web_pass):
@@ -273,13 +279,19 @@ class RequestHandler(BaseHTTPRequestHandler):
             if not target_id:
                 self._send_json({"ok": False, "error": "ไม่มี User ID"}, status=400)
                 return
-            item = add_recipient(target_id, name)
-            self._send_json({"ok": True, "item": item, "recipients": get_recipients(), "discovered": get_discovered()})
+            try:
+                item = add_recipient(target_id, name)
+                self._send_json({"ok": True, "item": item, "recipients": get_recipients(), "discovered": get_discovered()})
+            except ValueError as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
             return
 
         # 5. Discovered: ลบออกจากรายการค้นพบ
         if path == "/api/discovered/delete":
             target_id = payload.get("id", "").strip()
+            if not is_valid_target_id(target_id):
+                self._send_json({"ok": False, "error": "รูปแบบ ID ไม่ถูกต้อง"}, status=400)
+                return
             ok = remove_discovered(target_id)
             self._send_json({"ok": ok, "discovered": get_discovered()})
             return
@@ -299,35 +311,48 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/recipients/toggle":
             target_id = payload.get("id", "").strip()
-            active = payload.get("active", True)
+            if not is_valid_target_id(target_id):
+                self._send_json({"ok": False, "error": "รูปแบบ ID ไม่ถูกต้อง"}, status=400)
+                return
+            active = bool(payload.get("active", True))
             ok = toggle_recipient(target_id, active)
             self._send_json({"ok": ok, "recipients": get_recipients()})
             return
 
         if path == "/api/recipients/delete":
             target_id = payload.get("id", "").strip()
+            if not is_valid_target_id(target_id):
+                self._send_json({"ok": False, "error": "รูปแบบ ID ไม่ถูกต้อง"}, status=400)
+                return
             ok = remove_recipient(target_id)
             self._send_json({"ok": ok, "recipients": get_recipients()})
             return
 
         if path == "/api/test-send":
             target_id = payload.get("id", "").strip()
+            if target_id and not is_valid_target_id(target_id):
+                self._send_json({"ok": False, "error": "รูปแบบ ID ผู้รับไม่ถูกต้อง"}, status=400)
+                return
+
             from line_api import LineClient
             if not WebState.token:
                 self._send_json({"ok": False, "error": "ไม่มี LINE_CHANNEL_ACCESS_TOKEN ในระบบ"}, status=400)
                 return
-            
+
             targets = [target_id] if target_id else get_active_target_ids()
             if not targets:
                 self._send_json({"ok": False, "error": "ไม่มีผู้รับที่ระบุ หรือไม่มีผู้รับที่เปิดใช้งานอยู่"}, status=400)
                 return
 
             client = LineClient(WebState.token, targets)
-            test_msg = payload.get("text") or (
+            default_msg = (
                 f"🔔 ทดสอบการแจ้งเตือนจากระบบสรุปการมาทำงาน\n"
                 f"เวลาทดสอบ: {datetime.now().strftime('%H:%M:%S')}\n"
                 f"ระบบพร้อมส่งสรุปเวลา {', '.join(t.strftime('%H:%M') if hasattr(t, 'strftime') else str(t) for t in WebState.send_times)} น."
             )
+            raw_text = payload.get("text")
+            test_msg = sanitize_message(raw_text) if raw_text else default_msg
+
             try:
                 client.send_text(test_msg)
                 self._send_json({"ok": True, "message": f"ส่งข้อความทดสอบไปยัง {len(targets)} รายการเรียบร้อยแล้ว"})
