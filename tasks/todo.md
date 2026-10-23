@@ -1,14 +1,9 @@
-# Todo List
+# Todo List: Real DB & LINE Auto-Webhook Fix
 
-- [x] Task 1: ตรวจสอบและปรับปรุงโค้ด Python ให้เข้ากันได้กับ Python 3.8.10 (แก้ `| None` ให้ใช้ `Optional` และ `from __future__ import annotations`)
-- [x] Task 2: ปรับปรุง `db.py` ให้รองรับ Hybrid Authentication (Windows Auth / SQL Auth) และ Mock Mode พร้อมคำแนะนำภาษาไทยเมื่อเชื่อมต่อไม่ได้
-- [x] Task 3: สร้าง SQL Server Schema & Seed Data จำลองฐานข้อมูล `hiptime` ตรงตาม HIP Time 4.0
-- [x] Task 4: ปรับปรุง `Dockerfile` ให้ใช้ `python:3.8.10-slim` และอัปเดต `docker-compose.yml`
-- [x] Task 5: สร้างชุดสคริปต์ 1-Click สำหรับ Windows 7 (`install.bat`, `run_manual.bat`, `run_background.vbs`, `uninstall.bat`)
-- [x] Task 6: อัปเดต `.github/workflows/ci.yml` ให้ทดสอบ Matrix (Python 3.8 & 3.12)
-- [x] Task 7: เขียน Unit Test ตรวจสอบ Mock Mode, Windows Auth format, และ Syntax Compatibility (27/27 ผ่าน)
-- [x] Task 8: เพิ่มระบบบันทึก Log ข้อผิดพลาด (`log_buffer.py`) พร้อมปุ่ม Copy Log บนหน้าเว็บ เพื่อให้ก๊อปส่งให้นายดูได้สะดวก
-- [x] Task 9: เพิ่มการตั้งค่าผ่านหน้าเว็บ (`settings.py`) โดยตั้งค่าเริ่มต้น: ตัดสาย 07:30 น., Auto Download 09:00 น., และส่ง LINE 09:30 น.
-- [x] Task 10: สร้างโปรเจกต์ Go (`go-stw`) ใช้ Go 1.20 (รองรับ Windows 7 32-bit โดยไม่ต้องอัปเดต Windows)
-- [x] Task 11: Implement Attendance Calculator, Pure Go SQL Server Client (`go-mssqldb`), Mock DB, Web UI (embedded HTML), Log Buffer & Settings JSON
-- [x] Task 12: Cross-compile เป็น Windows 32-bit PE executable (`STW_TeacherCheck.exe` & `STW_TeacherCheck_Silent.exe`) บรรจุในโฟลเดอร์ `release-windows7` พร้อม batch สคริปต์ autostart
+- [x] Task 1: อัปเดต `.env` และ `go-stw/config/settings.go` (ใส่ LINE Token จริง, รองรับอ่านค่าจาก `.env`, เอาโค้ดบังคับทับค่า DB ออก)
+- [x] Task 2: แก้ไข `go-stw/db/database.go` (เพิ่ม `encrypt=disable` + TLS 1.0 CipherSuites, แก้ `?` เป็น `@p1`, เพิ่ม `Ping()` และระบบ Auto-Fallback เชื่อมต่อทั้ง `Synctime` และ `hiptime`)
+- [x] Task 3: อัปเกรด `go-stw/line/client.go` (เพิ่ม `SetWebhookEndpoint`, `GetWebhookEndpoint`, และ `BroadcastText`)
+- [x] Task 4: สร้าง `go-stw/tunnel/tunnel.go` สำหรับรัน `cloudflared --no-autoupdate` อัตโนมัติและซิงก์ Webhook URL เข้า LINE API ทันทีที่เปิดโปรแกรม
+- [x] Task 5: อัปเดต `go-stw/main.go`, `go-stw/web/server.go`, และ `go-stw/web/index.html` (ให้บันทึกตั้งค่าแล้ว Reconnect DB ทันที, แสดงสถานะ DB และ Webhook URL จริง)
+- [x] Task 6: ดาวน์โหลด `cloudflared.exe` รุ่นรองรับ Windows 7 32-bit (Go 1.20) ใส่ใน `release-windows7/cloudflared.exe` และอัปเดตสคริปต์ `.bat`
+- [x] Task 7: รัน Unit Tests, ทดสอบเชื่อม `hip_sqlserver` (DB `Synctime`) + ทดสอบเชื่อม LINE API จริง + คอมไพล์ `.exe` สำหรับ Windows 7 32-bit

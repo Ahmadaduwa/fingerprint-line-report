@@ -1,6 +1,7 @@
 package db
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"regexp"
@@ -8,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/denisenkom/go-mssqldb"
+	mssql "github.com/denisenkom/go-mssqldb"
+	"github.com/denisenkom/go-mssqldb/msdsn"
 
 	"stw_teacher_check/attendance"
 	"stw_teacher_check/config"
@@ -33,53 +35,165 @@ type SQLServerDB struct {
 	database string
 }
 
+func openSQLDB(connStr string) (*sql.DB, error) {
+	msdsnCfg, _, err := msdsn.Parse(connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// กำหนด TLSConfig ให้รองรับ TLS 1.0 (0x0301) สำหรับ SQL Server 2008/2012 บน Windows 7
+	// แม้เมื่อเซิร์ฟเวอร์บังคับเข้ารหัส Login Packet
+	msdsnCfg.TLSConfig = &tls.Config{
+		InsecureSkipVerify:          true,
+		MinVersion:                  tls.VersionTLS10,
+		MaxVersion:                  tls.VersionTLS13,
+		DynamicRecordSizingDisabled: true,
+		CipherSuites: []uint16{
+			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		},
+	}
+
+	connector := mssql.NewConnectorConfig(msdsnCfg)
+	db := sql.OpenDB(connector)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(3)
+	db.SetConnMaxLifetime(time.Hour)
+	return db, nil
+}
+
+func uniqueStrings(items ...string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, it := range items {
+		it = strings.TrimSpace(it)
+		if it == "" || seen[strings.ToLower(it)] {
+			continue
+		}
+		seen[strings.ToLower(it)] = true
+		out = append(out, it)
+	}
+	return out
+}
+
 func Connect(cfg config.Settings) (Database, error) {
 	if cfg.MockMode || strings.EqualFold(cfg.DBAuth, "mock") || strings.EqualFold(cfg.DBHost, "mock") {
 		logger.Info("DB", "ใช้ฐานข้อมูลจำลอง (Mock DB)")
 		return NewMockDB(cfg.CompanyName), nil
 	}
 
+	// 1. ลองเชื่อมต่อด้วยค่าที่ตั้งไว้ก่อน
 	connStr := buildConnString(cfg)
-	db, err := sql.Open("sqlserver", connStr)
-	if err != nil {
-		logger.Error("DB", err, "เปิดการเชื่อมต่อ SQL Server ไม่สำเร็จ: %s", cfg.DBHost)
-		return nil, err
+	primaryDB, err := openSQLDB(connStr)
+	if err == nil {
+		if pingErr := primaryDB.Ping(); pingErr == nil {
+			logger.Info("DB", "✅ เชื่อมต่อ SQL Server สำเร็จ (%s / DB: %s)", cfg.DBHost, cfg.DBName)
+			return &SQLServerDB{
+				db:       primaryDB,
+				host:     cfg.DBHost,
+				database: cfg.DBName,
+			}, nil
+		} else {
+			_ = primaryDB.Close()
+			err = pingErr
+		}
 	}
 
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(3)
-	db.SetConnMaxLifetime(time.Hour)
+	// 2. Auto-Fallback: ลองสลับชื่อ DB (Synctime / hiptime) และโหมดการยืนยันตัวตนอัตโนมัติ
+	hosts := uniqueStrings(cfg.DBHost, "127.0.0.1", `.\SQLEXPRESS`, `SS-PC\SQLEXPRES`)
+	dbNames := uniqueStrings(cfg.DBName, "Synctime", "hiptime")
+	passwords := uniqueStrings(cfg.DBPassword)
 
+	for _, h := range hosts {
+		for _, dbName := range dbNames {
+			// ลอง SQL Auth
+			for _, pw := range passwords {
+				tryCfg := cfg
+				tryCfg.DBHost = h
+				tryCfg.DBName = dbName
+				tryCfg.DBAuth = "sql"
+				tryCfg.DBUser = "sa"
+				tryCfg.DBPassword = pw
+
+				cStr := buildConnString(tryCfg)
+				d, oErr := openSQLDB(cStr)
+				if oErr != nil {
+					continue
+				}
+				if pErr := d.Ping(); pErr == nil {
+					logger.Info("DB", "✅ เชื่อมต่อ SQL Server สำเร็จผ่านระบบ Auto-Fallback (Host: %s, DB: %s)", h, dbName)
+					return &SQLServerDB{
+						db:       d,
+						host:     h,
+						database: dbName,
+					}, nil
+				}
+				_ = d.Close()
+			}
+
+			// ลอง Windows Auth
+			winCfg := cfg
+			winCfg.DBHost = h
+			winCfg.DBName = dbName
+			winCfg.DBAuth = "windows"
+			winCfg.DBPassword = ""
+			cStr := buildConnString(winCfg)
+			if d, oErr := openSQLDB(cStr); oErr == nil {
+				if pErr := d.Ping(); pErr == nil {
+					logger.Info("DB", "✅ เชื่อมต่อ SQL Server สำเร็จผ่าน Windows Auth (Host: %s, DB: %s)", h, dbName)
+					return &SQLServerDB{
+						db:       d,
+						host:     h,
+						database: dbName,
+					}, nil
+				}
+				_ = d.Close()
+			}
+		}
+	}
+
+	// หากไม่สำเร็จทั้งหมด ให้คืน instance ของค่าหลักเพื่อให้ TestConnection() รายงานข้อผิดพลาดที่แท้จริงได้
+	fallbackDB, _ := openSQLDB(connStr)
+	logger.Error("DB", err, "เปิดการเชื่อมต่อ SQL Server ไม่สำเร็จ: %s (DB: %s)", cfg.DBHost, cfg.DBName)
 	return &SQLServerDB{
-		db:       db,
+		db:       fallbackDB,
 		host:     cfg.DBHost,
 		database: cfg.DBName,
-	}, nil
+	}, err
 }
 
 func buildConnString(cfg config.Settings) string {
 	server := strings.TrimSpace(cfg.DBHost)
 	if server == "" {
-		server = `.\SQLEXPRESS`
+		server = "127.0.0.1"
 	}
 	// ปรับ backslash ให้ถูกต้อง ไม่ให้ซ้ำซ้อน
 	server = regexp.MustCompile(`\\+`).ReplaceAllString(server, `\`)
 
 	dbName := strings.TrimSpace(cfg.DBName)
 	if dbName == "" {
-		dbName = "hiptime"
+		dbName = "Synctime"
 	}
 
 	var parts []string
 	parts = append(parts, fmt.Sprintf("server=%s", server))
 
-	// ถ้าไม่มี instance และระบุ port พิเศษ
-	if cfg.DBPort > 0 && cfg.DBPort != 1433 && !strings.Contains(server, `\`) {
+	// ถ้าไม่มี instance และระบุ port
+	if cfg.DBPort > 0 && !strings.Contains(server, `\`) {
 		parts = append(parts, fmt.Sprintf("port=%d", cfg.DBPort))
 	}
 	parts = append(parts, fmt.Sprintf("database=%s", dbName))
-	parts = append(parts, "connection timeout=10")
-	parts = append(parts, "dial timeout=10")
+	parts = append(parts, "encrypt=disable")
+	parts = append(parts, "trustservercertificate=true")
+	parts = append(parts, "connection timeout=5")
+	parts = append(parts, "dial timeout=5")
 
 	// Authentication mode
 	if strings.EqualFold(cfg.DBAuth, "windows") || cfg.DBPassword == "" {
@@ -104,6 +218,15 @@ func (s *SQLServerDB) Close() error {
 }
 
 func (s *SQLServerDB) TestConnection() map[string]interface{} {
+	if s.db == nil {
+		return map[string]interface{}{
+			"ok":       false,
+			"error":    "ยังไม่ได้กำหนดการเชื่อมต่อฐานข้อมูล",
+			"advice":   "ตรวจสอบค่าตั้งค่าฐานข้อมูล",
+			"host":     s.host,
+			"database": s.database,
+		}
+	}
 	if err := s.db.Ping(); err != nil {
 		errStr := err.Error()
 		advice := "ตรวจสอบชื่อ Server/Instance และเปิดพอร์ต 1433 ใน SQL Server Configuration Manager"
@@ -112,7 +235,7 @@ func (s *SQLServerDB) TestConnection() map[string]interface{} {
 		} else if strings.Contains(errStr, "Login failed") {
 			advice = "รหัสผ่าน SQL Server ('sa') ไม่ถูกต้อง หรือ Windows User ไม่มีสิทธิ์ sysadmin"
 		} else if strings.Contains(errStr, "Cannot open database") {
-			advice = fmt.Sprintf("ไม่พบฐานข้อมูล '%s' (ตรวจสอบว่าชื่อ hiptime ตรงกับในเครื่องหรือไม่)", s.database)
+			advice = fmt.Sprintf("ไม่พบฐานข้อมูล '%s' (ตรวจสอบว่าชื่อ Synctime หรือ hiptime ตรงกับในเครื่องหรือไม่)", s.database)
 		}
 
 		logger.Error("DB", err, "ทดสอบเชื่อมต่อล้มเหลว: %s", advice)
@@ -129,7 +252,10 @@ func (s *SQLServerDB) TestConnection() map[string]interface{} {
 	var dbName string
 	_ = s.db.QueryRow("SELECT @@VERSION, DB_NAME()").Scan(&ver, &dbName)
 	if lines := strings.Split(ver, "\n"); len(lines) > 0 {
-		ver = lines[0]
+		ver = strings.TrimSpace(lines[0])
+	}
+	if dbName == "" {
+		dbName = s.database
 	}
 
 	people, _ := s.GetPeople()
@@ -139,6 +265,7 @@ func (s *SQLServerDB) TestConnection() map[string]interface{} {
 		"ok":             true,
 		"message":        "เชื่อมต่อฐานข้อมูล SQL Server สำเร็จเรียบร้อย",
 		"server_version": ver,
+		"host":           s.host,
 		"database":       dbName,
 		"school_name":    schoolName,
 		"employee_count": len(people),
@@ -317,7 +444,7 @@ func (s *SQLServerDB) GetScans(day time.Time) (map[int][]time.Time, error) {
 	rows, err := s.db.Query(`
 		SELECT enrollnumber, datetimescan 
 		FROM Transcantime 
-		WHERE adddate >= ? OR adddate IS NULL
+		WHERE adddate >= @p1 OR adddate IS NULL
 	`, cutoff)
 	if err != nil {
 		return nil, err

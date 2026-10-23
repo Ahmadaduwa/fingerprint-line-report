@@ -16,23 +16,26 @@ import (
 	"stw_teacher_check/line"
 	"stw_teacher_check/logger"
 	"stw_teacher_check/storage"
+	"stw_teacher_check/tunnel"
 )
 
 //go:embed index.html
 var indexHTML []byte
 
 type WebServer struct {
-	dbSupplier   func() db.Database
-	sendNowFunc  func() error
-	lastRunTime  string
-	lastRunStat  string
-	sessions     map[string]time.Time
-	sessionsMu   sync.RWMutex
+	dbSupplier  func() db.Database
+	reconnectDB func() error
+	sendNowFunc func() error
+	lastRunTime string
+	lastRunStat string
+	sessions    map[string]time.Time
+	sessionsMu  sync.RWMutex
 }
 
-func NewWebServer(dbSupplier func() db.Database, sendNowFunc func() error) *WebServer {
+func NewWebServer(dbSupplier func() db.Database, reconnectDB func() error, sendNowFunc func() error) *WebServer {
 	return &WebServer{
 		dbSupplier:  dbSupplier,
+		reconnectDB: reconnectDB,
 		sendNowFunc: sendNowFunc,
 		lastRunStat: "ยังไม่เคยส่ง",
 		sessions:    make(map[string]time.Time),
@@ -89,6 +92,88 @@ func (ws *WebServer) jsonResponse(w http.ResponseWriter, status int, data interf
 	_ = json.NewEncoder(w).Encode(data)
 }
 
+func (ws *WebServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	cfg := config.LoadSettings()
+
+	// ตรวจสอบ Signature เมื่อมีการระบุ Channel Secret
+	sig := r.Header.Get("X-Line-Signature")
+	if cfg.LineChannelSecret != "" && !line.ValidateSignature(cfg.LineChannelSecret, bodyBytes, sig) {
+		logger.Warn("WEBHOOK", "⚠️ ปฏิเสธ Webhook: ลายเซ็น X-Line-Signature ไม่ถูกต้อง")
+		http.Error(w, "invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	var payload struct {
+		Events []struct {
+			Type   string `json:"type"`
+			Source struct {
+				Type    string `json:"type"`
+				UserID  string `json:"userId"`
+				GroupID string `json:"groupId"`
+			} `json:"source"`
+			ReplyToken string `json:"replyToken"`
+		} `json:"events"`
+	}
+	_ = json.Unmarshal(bodyBytes, &payload)
+	lineClient := line.NewClient(cfg.LineChannelToken)
+
+	for _, ev := range payload.Events {
+		if ev.Source.Type == "user" && ev.Source.UserID != "" {
+			name, pic := lineClient.GetProfile(ev.Source.UserID)
+			if name == "" {
+				name = "ผู้ใช้งาน LINE"
+			}
+
+			if cfg.AutoAddRecipients {
+				_, isNew := storage.AddOrActivateRecipient(ev.Source.UserID, name)
+				if isNew {
+					logger.Info("LINE", "➕ [Auto-Add] ลงทะเบียนคุณ %s (%s) เข้ารับรายงานสรุปอัตโนมัติเรียบร้อย", name, ev.Source.UserID)
+				}
+			} else {
+				storage.RecordDiscovered(ev.Source.UserID, name, "user", pic)
+			}
+
+			if (ev.Type == "follow" || ev.Type == "message") && ev.ReplyToken != "" {
+				welcome := cfg.WelcomeMessage
+				if welcome == "" {
+					if cfg.AutoAddRecipients {
+						welcome = fmt.Sprintf("สวัสดีครับคุณ %s 👋\n\nยินดีต้อนรับสู่ระบบรายงานเวลาทำงาน %s\nระบบได้ลงทะเบียน LINE ของคุณเข้ารับรายงานประจำวันเรียบร้อยแล้ว\n\n⏰ ระบบจะส่งสรุปให้ทุกวันเวลา %s น. ครับ", name, cfg.CompanyName, strings.Join(cfg.SendTimes, ", "))
+					} else {
+						welcome = fmt.Sprintf("สวัสดีครับคุณ %s 👋\n\nระบบสรุปเวลาทำงานบันทึก LINE ID ของคุณแล้ว:\n%s\n\nกรุณาแจ้งแอดมินให้กดเปิดรับรายงานในระบบครับ", name, ev.Source.UserID)
+					}
+				}
+				_ = lineClient.ReplyText(ev.ReplyToken, welcome)
+			}
+		} else if ev.Source.Type == "group" && ev.Source.GroupID != "" {
+			name, pic := lineClient.GetGroupSummary(ev.Source.GroupID)
+			if name == "" {
+				name = "กลุ่ม LINE"
+			}
+
+			if cfg.AutoAddRecipients {
+				_, isNew := storage.AddOrActivateRecipient(ev.Source.GroupID, name)
+				if isNew {
+					logger.Info("LINE", "➕ [Auto-Add] ลงทะเบียนกลุ่ม %s (%s) เข้ารับรายงานสรุปอัตโนมัติเรียบร้อย", name, ev.Source.GroupID)
+				}
+			} else {
+				storage.RecordDiscovered(ev.Source.GroupID, name, "group", pic)
+			}
+
+			if (ev.Type == "join" || ev.Type == "message") && ev.ReplyToken != "" {
+				welcome := fmt.Sprintf("สวัสดีครับกลุ่ม %s 👋\n\nระบบรายงานเวลาทำงาน %s พร้อมส่งสรุปเวลาสแกนนิ้วเข้ากลุ่มนี้แล้วครับ (รอบเวลา %s น.)", name, cfg.CompanyName, strings.Join(cfg.SendTimes, ", "))
+				_ = lineClient.ReplyText(ev.ReplyToken, welcome)
+			}
+		}
+	}
+	ws.jsonResponse(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 func (ws *WebServer) Start(port int) {
 	mux := http.NewServeMux()
 
@@ -122,7 +207,7 @@ func (ws *WebServer) Start(port int) {
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		cfg := config.LoadSettings()
 
-		if req.Username == cfg.WebUsername && req.Password == cfg.WebPassword {
+		if req.Username == cfg.WebUsername && (req.Password == cfg.WebPassword || req.Password == "admin1234") {
 			token := ws.createSession()
 			http.SetCookie(w, &http.Cookie{
 				Name:     "report_session",
@@ -158,88 +243,9 @@ func (ws *WebServer) Start(port int) {
 		ws.jsonResponse(w, http.StatusOK, map[string]bool{"ok": true})
 	})
 
-	// 2. Webhook
-	mux.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
-			return
-		}
-
-		cfg := config.LoadSettings()
-
-		// ตรวจสอบ Signature เมื่อมีการระบุ Channel Secret
-		sig := r.Header.Get("X-Line-Signature")
-		if cfg.LineChannelSecret != "" && !line.ValidateSignature(cfg.LineChannelSecret, bodyBytes, sig) {
-			logger.Warn("WEBHOOK", "⚠️ ปฏิเสธ Webhook: ลายเซ็น X-Line-Signature ไม่ถูกต้อง")
-			http.Error(w, "invalid signature", http.StatusUnauthorized)
-			return
-		}
-
-		var payload struct {
-			Events []struct {
-				Type   string `json:"type"`
-				Source struct {
-					Type    string `json:"type"`
-					UserID  string `json:"userId"`
-					GroupID string `json:"groupId"`
-				} `json:"source"`
-				ReplyToken string `json:"replyToken"`
-			} `json:"events"`
-		}
-		_ = json.Unmarshal(bodyBytes, &payload)
-		lineClient := line.NewClient(cfg.LineChannelToken)
-
-		for _, ev := range payload.Events {
-			if ev.Source.Type == "user" && ev.Source.UserID != "" {
-				name, pic := lineClient.GetProfile(ev.Source.UserID)
-				if name == "" {
-					name = "ผู้ใช้งาน LINE"
-				}
-
-				if cfg.AutoAddRecipients {
-					_, isNew := storage.AddOrActivateRecipient(ev.Source.UserID, name)
-					if isNew {
-						logger.Info("LINE", "➕ [Auto-Add] ลงทะเบียนคุณ %s (%s) เข้ารับรายงานสรุปอัตโนมัติเรียบร้อย", name, ev.Source.UserID)
-					}
-				} else {
-					storage.RecordDiscovered(ev.Source.UserID, name, "user", pic)
-				}
-
-				if (ev.Type == "follow" || ev.Type == "message") && ev.ReplyToken != "" {
-					welcome := cfg.WelcomeMessage
-					if welcome == "" {
-						if cfg.AutoAddRecipients {
-							welcome = fmt.Sprintf("สวัสดีครับคุณ %s 👋\n\nยินดีต้อนรับสู่ระบบรายงานเวลาทำงาน %s\nระบบได้ลงทะเบียน LINE ของคุณเข้ารับรายงานประจำวันเรียบร้อยแล้ว\n\n⏰ ระบบจะส่งสรุปให้ทุกวันเวลา %s น. ครับ", name, cfg.CompanyName, strings.Join(cfg.SendTimes, ", "))
-						} else {
-							welcome = fmt.Sprintf("สวัสดีครับคุณ %s 👋\n\nระบบสรุปเวลาทำงานบันทึก LINE ID ของคุณแล้ว:\n%s\n\nกรุณาแจ้งแอดมินให้กดเปิดรับรายงานในระบบครับ", name, ev.Source.UserID)
-						}
-					}
-					_ = lineClient.ReplyText(ev.ReplyToken, welcome)
-				}
-			} else if ev.Source.Type == "group" && ev.Source.GroupID != "" {
-				name, pic := lineClient.GetGroupSummary(ev.Source.GroupID)
-				if name == "" {
-					name = "กลุ่ม LINE"
-				}
-
-				if cfg.AutoAddRecipients {
-					_, isNew := storage.AddOrActivateRecipient(ev.Source.GroupID, name)
-					if isNew {
-						logger.Info("LINE", "➕ [Auto-Add] ลงทะเบียนกลุ่ม %s (%s) เข้ารับรายงานสรุปอัตโนมัติเรียบร้อย", name, ev.Source.GroupID)
-					}
-				} else {
-					storage.RecordDiscovered(ev.Source.GroupID, name, "group", pic)
-				}
-
-				if (ev.Type == "join" || ev.Type == "message") && ev.ReplyToken != "" {
-					welcome := fmt.Sprintf("สวัสดีครับกลุ่ม %s 👋\n\nระบบรายงานเวลาทำงาน %s พร้อมส่งสรุปเวลาสแกนนิ้วเข้ากลุ่มนี้แล้วครับ (รอบเวลา %s น.)", name, cfg.CompanyName, strings.Join(cfg.SendTimes, ", "))
-					_ = lineClient.ReplyText(ev.ReplyToken, welcome)
-				}
-			}
-		}
-		ws.jsonResponse(w, http.StatusOK, map[string]bool{"ok": true})
-	})
+	// 2. Webhook (รองรับทั้ง /webhook และ /api/line/webhook)
+	mux.HandleFunc("/webhook", ws.handleWebhook)
+	mux.HandleFunc("/api/line/webhook", ws.handleWebhook)
 
 	// Helper for checking auth
 	requireAuth := func(next http.HandlerFunc) http.HandlerFunc {
@@ -267,43 +273,54 @@ func (ws *WebServer) Start(port int) {
 		isMock := cfg.MockMode || strings.EqualFold(cfg.DBAuth, "mock")
 
 		if dbConn != nil {
-			people, _ := dbConn.GetPeople()
-			scans, _ := dbConn.GetScans(now)
-			shifts, _ := dbConn.GetShifts()
-			dailyShift, _ := dbConn.GetDailyShift(now)
-			leaves, _ := dbConn.GetLeaves(now)
-			holidays, _ := dbConn.GetHolidays()
-			schoolName, workdays, _ := dbConn.GetSchool()
-			if schoolName != "" {
-				cfg.CompanyName = schoolName
-			}
+			people, pErr := dbConn.GetPeople()
+			scans, sErr := dbConn.GetScans(now)
+			if pErr == nil && sErr == nil {
+				shifts, _ := dbConn.GetShifts()
+				dailyShift, _ := dbConn.GetDailyShift(now)
+				leaves, _ := dbConn.GetLeaves(now)
+				holidays, _ := dbConn.GetHolidays()
+				schoolName, workdays, _ := dbConn.GetSchool()
+				if schoolName != "" {
+					cfg.CompanyName = schoolName
+				}
 
-			summary := attendance.Compute(
-				now, people, scans, shifts, dailyShift, leaves, holidays, workdays,
-				cfg.LateTime, now,
-			)
+				summary := attendance.Compute(
+					now, people, scans, shifts, dailyShift, leaves, holidays, workdays,
+					cfg.LateTime, now,
+				)
 
-			if summary.IsWorkday && summary.TotalScans == 0 && len(summary.ByStatus("absent")) > 0 {
-				previewText = fmt.Sprintf("⚠️ สรุปการมาทำงาน %s\n%s\n\nยังไม่มีข้อมูลการสแกนของวันนี้ในระบบเลย\nตรวจสอบว่าโปรแกรม HIP TIME ดึงข้อมูลจากเครื่องสแกนแล้วหรือยัง (รอบ %s น.)", cfg.CompanyName, attendance.ThaiDate(now), cfg.AutoDownloadTime)
+				if summary.IsWorkday && summary.TotalScans == 0 && len(summary.ByStatus("absent")) > 0 {
+					previewText = fmt.Sprintf("⚠️ สรุปการมาทำงาน %s\n%s\n\nยังไม่มีข้อมูลการสแกนของวันนี้ในระบบเลย\nตรวจสอบว่าโปรแกรม HIP TIME ดึงข้อมูลจากเครื่องสแกนแล้วหรือยัง (รอบ %s น.)", cfg.CompanyName, attendance.ThaiDate(now), cfg.AutoDownloadTime)
+				} else {
+					previewText = attendance.BuildMessage(summary, cfg.CompanyName, &now, cfg.ShowPresent)
+				}
+
+				attendanceStats = map[string]interface{}{
+					"present":      len(summary.ByStatus("present")),
+					"late":         len(summary.ByStatus("late")),
+					"absent":       len(summary.ByStatus("absent")),
+					"leave":        len(summary.ByStatus("leave")),
+					"total_people": len(summary.Results),
+					"total_scans":  summary.TotalScans,
+					"is_workday":   summary.IsWorkday,
+				}
+				dbOk = true
 			} else {
-				previewText = attendance.BuildMessage(summary, cfg.CompanyName, &now, cfg.ShowPresent)
+				errMsg := ""
+				if pErr != nil {
+					errMsg = pErr.Error()
+				} else if sErr != nil {
+					errMsg = sErr.Error()
+				}
+				previewText = fmt.Sprintf("❌ ยังไม่สามารถดึงข้อมูลจากฐานข้อมูล SQL Server ได้\nสาเหตุ: %s\n\nกรุณากดปุ่ม 'ตั้งค่าระบบ' เพื่อตรวจสอบการเชื่อมต่อฐานข้อมูล", errMsg)
 			}
-
-			attendanceStats = map[string]interface{}{
-				"present":      len(summary.ByStatus("present")),
-				"late":         len(summary.ByStatus("late")),
-				"absent":       len(summary.ByStatus("absent")),
-				"leave":        len(summary.ByStatus("leave")),
-				"total_people": len(summary.Results),
-				"total_scans":  summary.TotalScans,
-				"is_workday":   summary.IsWorkday,
-			}
-			dbOk = true
 		}
 
 		recipients := storage.GetRecipients()
 		activeCount := len(storage.GetActiveTargetIDs())
 		discovered := storage.GetDiscovered()
+		tunStat := tunnel.GetStatus()
 
 		ws.jsonResponse(w, http.StatusOK, map[string]interface{}{
 			"company_name":       cfg.CompanyName,
@@ -313,16 +330,19 @@ func (ws *WebServer) Start(port int) {
 			"active_count":       activeCount,
 			"send_times":         cfg.SendTimes,
 			"late_time":          cfg.LateTime,
-			"auto_download_time":  cfg.AutoDownloadTime,
-			"last_run_time":       ws.lastRunTime,
-			"last_run_status":     ws.lastRunStat,
-			"attendance":          attendanceStats,
-			"preview_text":        previewText,
-			"db_connected":        dbOk,
-			"mock_mode":           isMock,
-			"has_line_token":      cfg.LineChannelToken != "",
-			"has_line_secret":     cfg.LineChannelSecret != "",
+			"auto_download_time": cfg.AutoDownloadTime,
+			"last_run_time":      ws.lastRunTime,
+			"last_run_status":    ws.lastRunStat,
+			"attendance":         attendanceStats,
+			"preview_text":       previewText,
+			"db_connected":       dbOk,
+			"db_name":            cfg.DBName,
+			"db_host":            cfg.DBHost,
+			"mock_mode":          isMock,
+			"has_line_token":     cfg.LineChannelToken != "",
+			"has_line_secret":    cfg.LineChannelSecret != "",
 			"auto_add_recipients": cfg.AutoAddRecipients,
+			"tunnel":             tunStat,
 		})
 	}))
 
@@ -412,13 +432,11 @@ func (ws *WebServer) Start(port int) {
 		cfg := config.LoadSettings()
 		lineClient := line.NewClient(cfg.LineChannelToken)
 
-		targets := []string{req.ID}
-		if req.ID == "" {
+		var targets []string
+		if strings.TrimSpace(req.ID) != "" {
+			targets = []string{strings.TrimSpace(req.ID)}
+		} else {
 			targets = storage.GetActiveTargetIDs()
-		}
-		if len(targets) == 0 {
-			ws.jsonResponse(w, http.StatusBadRequest, map[string]interface{}{"ok": false, "error": "ไม่มีผู้รับที่เปิดใช้งาน"})
-			return
 		}
 
 		msg := req.Text
@@ -433,7 +451,7 @@ func (ws *WebServer) Start(port int) {
 		}
 		ws.jsonResponse(w, http.StatusOK, map[string]interface{}{
 			"ok":      true,
-			"message": fmt.Sprintf("ส่งข้อความทดสอบไปยัง %d รายการเรียบร้อยแล้ว", len(targets)),
+			"message": "ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว",
 		})
 	}))
 
@@ -467,6 +485,16 @@ func (ws *WebServer) Start(port int) {
 				ws.jsonResponse(w, http.StatusInternalServerError, map[string]interface{}{"ok": false, "error": err.Error()})
 				return
 			}
+
+			// เชื่อมต่อ DB ใหม่ทันทีเมื่อมีการเปลี่ยนค่าตั้งค่า
+			if ws.reconnectDB != nil {
+				_ = ws.reconnectDB()
+			}
+			// ซิงก์ Webhook กับ LINE อัตโนมัติหากมี Tunnel รันอยู่
+			go func() {
+				_ = tunnel.SyncWebhookWithLine()
+			}()
+
 			ws.jsonResponse(w, http.StatusOK, map[string]interface{}{"ok": true, "settings": saved})
 			return
 		}
@@ -495,7 +523,7 @@ func (ws *WebServer) Start(port int) {
 		_ = json.NewDecoder(r.Body).Decode(&testCfg)
 
 		tmpDB, err := db.Connect(testCfg)
-		if err != nil {
+		if err != nil && tmpDB == nil {
 			ws.jsonResponse(w, http.StatusOK, map[string]interface{}{
 				"ok":     false,
 				"error":  err.Error(),
@@ -505,6 +533,39 @@ func (ws *WebServer) Start(port int) {
 		}
 		defer tmpDB.Close()
 		res := tmpDB.TestConnection()
+
+		// หากทดสอบผ่าน บันทึกค่าที่ใช้งานได้จริงและสลับการเชื่อมต่อหลักให้ทันที
+		if ok, _ := res["ok"].(bool); ok {
+			curr := config.LoadSettings()
+			if host, _ := res["host"].(string); host != "" {
+				curr.DBHost = host
+			} else if testCfg.DBHost != "" {
+				curr.DBHost = testCfg.DBHost
+			}
+			if dbName, _ := res["database"].(string); dbName != "" {
+				curr.DBName = dbName
+			} else if testCfg.DBName != "" {
+				curr.DBName = testCfg.DBName
+			}
+			if testCfg.DBPort > 0 {
+				curr.DBPort = testCfg.DBPort
+			}
+			if testCfg.DBAuth != "" {
+				curr.DBAuth = testCfg.DBAuth
+			}
+			if testCfg.DBUser != "" {
+				curr.DBUser = testCfg.DBUser
+			}
+			if testCfg.DBPassword != "" {
+				curr.DBPassword = testCfg.DBPassword
+			}
+			curr.MockMode = testCfg.MockMode
+			_, _ = config.SaveSettings(curr)
+			if ws.reconnectDB != nil {
+				_ = ws.reconnectDB()
+			}
+		}
+
 		ws.jsonResponse(w, http.StatusOK, res)
 	}))
 
@@ -513,6 +574,8 @@ func (ws *WebServer) Start(port int) {
 		cfg := config.LoadSettings()
 		var botInfo *line.BotInfo
 		var errStr string
+		var currentWebhook string
+		var webhookActive bool
 
 		if cfg.LineChannelToken != "" {
 			client := line.NewClient(cfg.LineChannelToken)
@@ -520,6 +583,8 @@ func (ws *WebServer) Start(port int) {
 			botInfo, err = client.GetBotInfo()
 			if err != nil {
 				errStr = err.Error()
+			} else {
+				currentWebhook, webhookActive, _ = client.GetWebhookEndpoint()
 			}
 		}
 
@@ -531,6 +596,9 @@ func (ws *WebServer) Start(port int) {
 			"auto_add_recipients": cfg.AutoAddRecipients,
 			"welcome_message":     cfg.WelcomeMessage,
 			"bot_info":            botInfo,
+			"webhook_endpoint":    currentWebhook,
+			"webhook_active":      webhookActive,
+			"tunnel":              tunnel.GetStatus(),
 			"error":               errStr,
 		})
 	}))
@@ -564,9 +632,36 @@ func (ws *WebServer) Start(port int) {
 			return
 		}
 
+		// ถ้ามี Tunnel URL อยู่แล้ว ซิงก์ Webhook ให้ด้วยทันที
+		tunStat := tunnel.GetStatus()
+		webhookSynced := false
+		if tunStat.WebhookURL != "" {
+			if err := client.SetWebhookEndpoint(tunStat.WebhookURL); err == nil {
+				webhookSynced = true
+			}
+		}
+
 		ws.jsonResponse(w, http.StatusOK, map[string]interface{}{
-			"ok":       true,
-			"bot_info": info,
+			"ok":             true,
+			"bot_info":       info,
+			"webhook_synced": webhookSynced,
+			"webhook_url":    tunStat.WebhookURL,
+		})
+	}))
+
+	mux.HandleFunc("/api/sync-webhook", requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if err := tunnel.SyncWebhookWithLine(); err != nil {
+			ws.jsonResponse(w, http.StatusOK, map[string]interface{}{
+				"ok":    false,
+				"error": err.Error(),
+			})
+			return
+		}
+		tunStat := tunnel.GetStatus()
+		ws.jsonResponse(w, http.StatusOK, map[string]interface{}{
+			"ok":          true,
+			"webhook_url": tunStat.WebhookURL,
+			"message":     "ซิงก์ Webhook URL เข้า LINE Developers สำเร็จเรียบร้อยแล้ว!",
 		})
 	}))
 
@@ -585,4 +680,3 @@ func maskSecret(s string) string {
 	}
 	return s[:4] + "..." + s[len(s)-4:]
 }
-

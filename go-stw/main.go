@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-
 	"stw_teacher_check/attendance"
 	"stw_teacher_check/config"
 	"stw_teacher_check/db"
 	"stw_teacher_check/line"
 	"stw_teacher_check/logger"
 	"stw_teacher_check/storage"
+	"stw_teacher_check/tunnel"
 	"stw_teacher_check/web"
 )
 
@@ -43,12 +43,11 @@ func initDB(mock bool) error {
 	}
 
 	d, err := db.Connect(cfg)
+	currentDB = d
 	if err != nil {
-		logger.Error("MAIN", err, "เชื่อมต่อฐานข้อมูลไม่สำเร็จ กำลังสลับเป็น Mock DB ชั่วคราว...")
-		currentDB = db.NewMockDB(cfg.CompanyName)
+		logger.Error("MAIN", err, "เชื่อมต่อฐานข้อมูล SQL Server ยังไม่สำเร็จ (กรุณาตรวจสอบการตั้งค่า DB)")
 		return err
 	}
-	currentDB = d
 	return nil
 }
 
@@ -59,7 +58,10 @@ func makeReport(d db.Database, day time.Time, now time.Time) (attendance.Summary
 	if err != nil {
 		return attendance.Summary{}, "", err
 	}
-	scans, _ := d.GetScans(day)
+	scans, err := d.GetScans(day)
+	if err != nil {
+		return attendance.Summary{}, "", err
+	}
 	shifts, _ := d.GetShifts()
 	dailyShift, _ := d.GetDailyShift(day)
 	leaves, _ := d.GetLeaves(day)
@@ -109,12 +111,12 @@ func runOnce(day time.Time, dryRun bool) error {
 	}
 
 	targets := storage.GetActiveTargetIDs()
+	lineClient := line.NewClient(cfg.LineChannelToken)
+
 	if len(targets) == 0 {
-		logger.Warning("REPORT", "ไม่มีรายชื่อผู้รับรายงานที่เปิดใช้งาน (ข้ามการส่ง)")
-		return fmt.Errorf("ไม่มีรายชื่อผู้รับรายงาน")
+		logger.Info("REPORT", "ยังไม่มีรายชื่อผู้รับเฉพาะเจาะจง กำลังส่งแบบ Broadcast ไปยังผู้ติดตามบอททุกคน...")
 	}
 
-	lineClient := line.NewClient(cfg.LineChannelToken)
 	err = lineClient.SendText(targets, text)
 	if err != nil {
 		logger.Error("REPORT", err, "ส่งรายงานเข้า LINE ไม่สำเร็จ")
@@ -124,9 +126,13 @@ func runOnce(day time.Time, dryRun bool) error {
 		return err
 	}
 
-	logger.Info("REPORT", "ส่งรายงานประจำวันไปยัง %d ผู้รับ สำเร็จเรียบร้อย", len(targets))
+	if len(targets) == 0 {
+		logger.Info("REPORT", "ส่งรายงานประจำวันแบบ Broadcast สำเร็จเรียบร้อย")
+	} else {
+		logger.Info("REPORT", "ส่งรายงานประจำวันไปยัง %d ผู้รับ สำเร็จเรียบร้อย", len(targets))
+	}
 	if webInstance != nil {
-		webInstance.SetLastRun(now.Format("2006-01-02 15:04:05"), "ส่งสำเร็จตามรอบเวลา")
+		webInstance.SetLastRun(now.Format("2006-01-02 15:04:05"), "ส่งสำเร็จ")
 	}
 	return nil
 }
@@ -220,16 +226,25 @@ func main() {
 		return
 	}
 
-	// สร้าง Web Server
-	webInstance = web.NewWebServer(getDB, func() error {
-		return runOnce(time.Now(), false)
-	})
+	// สร้าง Web Server พร้อม callback เชื่อมต่อ DB ใหม่อัตโนมัติเมื่อบันทึกตั้งค่า
+	webInstance = web.NewWebServer(
+		getDB,
+		func() error {
+			return initDB(false)
+		},
+		func() error {
+			return runOnce(time.Now(), false)
+		},
+	)
 
 	cfg := config.LoadSettings()
 	port := cfg.WebPort
 	if port == 0 {
 		port = 8090
 	}
+
+	// เริ่ม Cloudflare Tunnel ในเบื้องหลังเพื่อซิงก์ Webhook URL เข้า LINE อัตโนมัติ
+	tunnel.StartBackground(port)
 
 	// เริ่ม Background Scheduler
 	go startScheduler()

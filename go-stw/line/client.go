@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,12 +22,61 @@ type Client struct {
 }
 
 func NewClient(token string) *Client {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // รองรับ Windows 7 ที่ไม่ได้อัปเดต Root Certificate Store
+		},
+	}
 	return &Client{
 		Token: strings.TrimSpace(token),
 		httpClient: &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout:   15 * time.Second,
+			Transport: tr,
 		},
 	}
+}
+
+func (c *Client) BroadcastText(text string) error {
+	if c.Token == "" {
+		return fmt.Errorf("ไม่มี LINE Channel Access Token ในระบบ")
+	}
+
+	payload := map[string]interface{}{
+		"messages": []map[string]string{
+			{
+				"type": "text",
+				"text": text,
+			},
+		},
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/broadcast", bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		logger.Error("LINE", err, "ส่ง LINE Broadcast ล้มเหลว")
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		logger.Info("LINE", "ส่งข้อความ Broadcast ไปยังเพื่อนทุกคนของบอทสำเร็จ")
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	err = fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
+	logger.Error("LINE", err, "ส่ง LINE Broadcast ล้มเหลว (HTTP %d)", resp.StatusCode)
+	return err
 }
 
 func (c *Client) SendText(targets []string, text string) error {
@@ -34,7 +84,7 @@ func (c *Client) SendText(targets []string, text string) error {
 		return fmt.Errorf("ไม่มี LINE Channel Access Token ในระบบ")
 	}
 	if len(targets) == 0 {
-		return fmt.Errorf("ไม่มีผู้รับรายงานที่ระบุ")
+		return c.BroadcastText(text)
 	}
 
 	var firstErr error
@@ -76,12 +126,12 @@ func (c *Client) SendText(targets []string, text string) error {
 			}
 			continue
 		}
-		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			successCount++
 		} else {
-			body, _ := io.ReadAll(resp.Body)
 			err := fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
 			logger.Error("LINE", err, "ส่ง LINE ไปยัง %s ล้มเหลว (HTTP %d)", target, resp.StatusCode)
 			if firstErr == nil {
@@ -217,6 +267,73 @@ func (c *Client) GetBotInfo() (*BotInfo, error) {
 		return nil, err
 	}
 	return &info, nil
+}
+
+func (c *Client) GetWebhookEndpoint() (string, bool, error) {
+	if c.Token == "" {
+		return "", false, fmt.Errorf("ยังไม่ได้ระบุ Channel Access Token")
+	}
+	req, err := http.NewRequest("GET", "https://api.line.me/v2/bot/channel/webhook/endpoint", nil)
+	if err != nil {
+		return "", false, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", false, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var data struct {
+		Endpoint string `json:"endpoint"`
+		Active   bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", false, err
+	}
+	return data.Endpoint, data.Active, nil
+}
+
+func (c *Client) SetWebhookEndpoint(webhookURL string) error {
+	if c.Token == "" {
+		return fmt.Errorf("ยังไม่ได้ระบุ Channel Access Token")
+	}
+	webhookURL = strings.TrimSpace(webhookURL)
+	if !strings.HasPrefix(webhookURL, "https://") {
+		return fmt.Errorf("Webhook URL ต้องขึ้นต้นด้วย https:// เท่านั้น")
+	}
+
+	payload := map[string]string{
+		"endpoint": webhookURL,
+	}
+	b, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("PUT", "https://api.line.me/v2/bot/channel/webhook/endpoint", bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		logger.Info("LINE", "✅ ตั้งค่า Webhook URL ใน LINE Developers อัตโนมัติสำเร็จ: %s", webhookURL)
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("ตั้งค่า Webhook ไม่สำเร็จ (HTTP %d): %s", resp.StatusCode, string(body))
 }
 
 func ValidateSignature(channelSecret string, body []byte, signature string) bool {

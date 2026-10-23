@@ -1,22 +1,21 @@
-# Implementation Plan: Python 3.8.10 (Windows 7 32-bit) & Target Server Simulation
+# Implementation Plan: Real DB & LINE Auto-Webhook Fix
 
-## Overview
-ปรับปรุงระบบ `line-report` ให้รองรับ Python 3.8.10 (32-bit x86) สำหรับติดตั้งและใช้งานบน Windows 7 พร้อมสร้างชุดสคริปต์ 1-Click ติดตั้งเป็น Windows Task Scheduler และสร้างระบบจำลองสภาพแวดล้อม (Simulation Environment) ให้เหมือนเครื่อง Windows 7 + SQL Server 2012 `hiptime` จริงมากที่สุด ทั้งในแบบ Docker Compose และ Offline Mock Mode
-
-## Key Decisions & Architecture
-1. **Python 3.8.10 Compatibility**:
-   - ปรับ Type Annotations ทั้งหมดให้รองรับ Python 3.8 (ใช้ `typing.Optional`, `typing.List`, `typing.Dict` หรือ `from __future__ import annotations`)
-   - อัปเดต `line-report/Dockerfile` เป็น `python:3.8.10-slim`
-2. **Hybrid Authentication**:
-   - รองรับ Windows Authentication (เมื่อรันบน Windows 7 ผ่าน `pyodbc` โดยไม่ต้องรู้รหัส `sa`)
-   - รองรับ SQL Server Authentication (`sa` + password ผ่าน `pymssql`)
-   - ฐานข้อมูลค่าเริ่มต้น: `hiptime` (ตรงตามโปรแกรม HIP Time 4.0)
-3. **Realistic Simulation**:
-   - **Docker Simulation**: อัปเดต `docker-compose.yml` และ init script สร้างฐานข้อมูล `hiptime` พร้อม Table และข้อมูลพนักงานตามหน้าจอจริง (ID 1, 2, 3, 10, 99, 159, 1111)
-   - **Offline Mock Mode**: รันด้วย `--mock` หรือ `DB_MOCK=true` เพื่อทดสอบระบบได้ทันทีโดยไม่ต้องรัน SQL Server
-4. **Windows 7 1-Click Installer**:
-   - `install.bat`: ตรวจสอบ/สร้าง venv, ลง `requirements.txt`, และลงทะเบียน Task Scheduler
-   - `run_manual.bat`: รันทดสอบแบบเห็น Log ทันที
-   - `uninstall.bat`: ถอนการติดตั้ง Service/Task
-5. **CI/CD Quality Gates**:
-   - อัปเดต GitHub Actions Matrix ให้ทดสอบทั้ง Python 3.8 และ 3.12
+## Tasks
+1. **Fix Database Layer (`go-stw/db/database.go`)**:
+   - Add `encrypt=disable;trustservercertificate=true` to `buildConnString`.
+   - Fix `GetScans` parameter placeholder from `?` to `@p1`.
+   - Verify connection with `Ping()` inside `Connect()` and implement automatic fallback across database names (`Synctime`, `hiptime`), hosts (`127.0.0.1`, `.\SQLEXPRESS`, `SS-PC\SQLEXPRES`), and auth modes.
+2. **Fix Settings & Env Loading (`go-stw/config/settings.go` & `.env`)**:
+   - Load `LINE_CHANNEL_ACCESS_TOKEN` and `DB_PASSWORD` from `.env` or Web UI (`data/settings.json`) without hardcoding secrets in source code.
+   - Remove forced overrides of `DBHost` and `DBAuth` when loading `settings.json`.
+3. **Add LINE Webhook Auto-Sync & Broadcast (`go-stw/line/client.go`)**:
+   - Add `SetWebhookEndpoint`, `GetWebhookEndpoint`, and `BroadcastText`.
+   - Fallback to `BroadcastText` when no individual recipient IDs are configured, or send to active recipient IDs when present.
+4. **Add Built-in Cloudflare Tunnel Manager (`go-stw/tunnel/tunnel.go`)**:
+   - Bundle Windows 7 32-bit compatible `cloudflared.exe` (v2023.8.2 built with Go 1.20) in `release-windows7/` with `--no-autoupdate`.
+   - Automatically start tunnel on startup, capture `https://*.trycloudflare.com`, and call `PUT /v2/bot/channel/webhook/endpoint` to register `/webhook` with LINE automatically.
+5. **Update Web Server & UI (`go-stw/web/server.go`, `go-stw/web/index.html`, `go-stw/main.go`)**:
+   - Reconnect DB immediately when settings are saved (`POST /api/settings`) or tested (`POST /api/test-db`).
+   - Report accurate `db_connected` status, actual database name, tunnel status, and auto-synced LINE webhook URL on the dashboard.
+6. **Verify & Build**:
+   - Stop old conflicting `hip_line_report` container on port 8090 if needed, run unit tests, test live against `hip_sqlserver` (`Synctime`) and real LINE API (`@143smwig`), and compile Windows 7 32-bit binaries (`STW_TeacherCheck.exe` & `STW_TeacherCheck_Silent.exe`).

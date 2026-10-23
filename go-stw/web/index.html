@@ -451,7 +451,7 @@
             <input type="password" class="form-input" id="loginPass" required placeholder="••••••••" autocomplete="current-password">
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 10px;">
-            🔐 เข้าสู่ระบบ
+            เข้าสู่ระบบ
           </button>
         </form>
       </div>
@@ -475,13 +475,13 @@
         <div class="header-actions">
           <button class="btn btn-outline" style="border-color: #06c755; color: #4ade80; display: flex; align-items: center; gap: 6px;" onclick="openLineModal()">
             <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f59e0b;" id="lineHeaderDot"></span>
-            💬 เชื่อมต่อ LINE
+            เชื่อมต่อ LINE
           </button>
-          <button class="btn btn-outline" onclick="openSettingsModal()">⚙️ ตั้งค่าระบบ</button>
-          <button class="btn btn-outline" onclick="scrollToLogs()">📋 ดู Log</button>
-          <button class="btn btn-outline" onclick="loadStatus()">🔄 รีเฟรช</button>
-          <button class="btn btn-primary" onclick="sendNow()">🚀 ส่งรายงานตอนนี้</button>
-          <button class="btn btn-outline" onclick="handleLogout()" title="ออกจากระบบ" style="color: #fca5a5;">🚪 ออกจากระบบ</button>
+          <button class="btn btn-outline" onclick="openSettingsModal()">ตั้งค่าระบบ</button>
+          <button class="btn btn-outline" onclick="scrollToLogs()">ดู Log</button>
+          <button class="btn btn-outline" onclick="loadStatus()">รีเฟรช</button>
+          <button class="btn btn-primary" onclick="sendNow()">ส่งรายงานตอนนี้</button>
+          <button class="btn btn-outline" onclick="handleLogout()" title="ออกจากระบบ" style="color: #fca5a5;">ออกจากระบบ</button>
         </div>
       </header>
 
@@ -535,10 +535,10 @@
           <div class="card" style="border: 1px solid rgba(6, 199, 85, 0.35); background: rgba(6, 199, 85, 0.05); margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
               <h2 style="font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
-                <span>📥</span> สมาชิก LINE ที่เชื่อมต่อเข้ามา
+                สมาชิก LINE ที่เชื่อมต่อเข้ามา
               </h2>
               <div style="display: flex; gap: 6px; align-items: center;">
-                <span class="badge-chip green" id="autoAddBadge">⚡ Auto-Add: เปิด</span>
+                <span class="badge-chip green" id="autoAddBadge">Auto-Add: เปิด</span>
                 <span class="badge-chip" id="discoveredBadge">0 คน/กลุ่ม</span>
               </div>
             </div>
@@ -548,13 +548,13 @@
             </div>
 
             <div class="help-box" style="margin-top: 12px; background: rgba(0,0,0,0.25);">
-              💡 <strong>ระบบ Auto-Add อัตโนมัติ:</strong> เมื่อคุณครูหรือกลุ่ม LINE แอดเพื่อนบอท (Add Friend) ระบบจะลงทะเบียนชื่อและเปิดรับรายงานประจำวัน 09:30 น. ให้อัตโนมัติทันที ไม่ต้องให้แอดมินมากดอนุมัติทีละคนครับ (ตั้งค่าได้ที่ปุ่ม <strong>"💬 เชื่อมต่อ LINE"</strong>)
+              <strong>[ระบบ Auto-Add อัตโนมัติ]:</strong> เมื่อคุณครูหรือกลุ่ม LINE แอดเพื่อนบอท (Add Friend) ระบบจะลงทะเบียนชื่อและเปิดรับรายงานประจำวัน 09:30 น. ให้อัตโนมัติทันที ไม่ต้องให้แอดมินมากดอนุมัติทีละคนครับ (ตั้งค่าได้ที่ปุ่ม <strong>"เชื่อมต่อ LINE"</strong>)
             </div>
           </div>
 
           <!-- Add Recipient Form (Manual) -->
           <div class="card">
-            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">➕ เพิ่มด้วยตนเอง (Manual)</h2>
+            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">เพิ่มผู้รับด้วยตนเอง (Manual)</h2>
             <form id="addForm" onsubmit="handleAddRecipient(event)">
               <div class="form-group">
                 <label class="form-label" for="targetId">LINE User ID หรือ Group ID *</label>
@@ -568,14 +568,14 @@
               </div>
 
               <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-                💾 บันทึกผู้รับรายงาน
+                บันทึกผู้รับรายงาน
               </button>
             </form>
           </div>
 
           <!-- Recipient List -->
           <div class="card" style="margin-top: 20px;">
-            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">📋 รายชื่อผู้รับรายงานปัจจุบัน (<span id="listCount">0</span>)</h2>
+            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">รายชื่อผู้รับรายงานปัจจุบัน (<span id="listCount">0</span>)</h2>
             <div id="recipientList">
               <div class="empty-state">กำลังโหลดรายชื่อ...</div>
             </div>
@@ -585,23 +585,29 @@
         <!-- Right Column: Live Attendance & Preview -->
         <div>
           <div class="card">
-            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">📊 พรีวิวข้อความสรุปที่จะส่งเข้า LINE</h2>
+            <h2 style="font-size: 1.05rem; margin-bottom: 14px;">พรีวิวข้อความสรุปที่จะส่งเข้า LINE</h2>
             <div class="preview-box" id="previewText">กำลังโหลดตัวอย่างข้อความ...</div>
             <div class="form-hint" style="margin-top: 8px;">
-              * ข้อความนี้จะถูกส่งอัตโนมัติตามเวลา 09:00 และ 18:00 เข้า LINE ของผู้รับทุกคนที่เปิดใช้งาน (สวิตช์เปิดอยู่)
+              * ข้อความนี้จะถูกส่งอัตโนมัติตามเวลา 09:30 เข้า LINE ของผู้รับทุกคนที่เปิดใช้งาน (สวิตช์เปิดอยู่)
             </div>
           </div>
 
           <!-- Webhook Info Box -->
           <div class="card" style="margin-top: 20px;">
-            <h2 style="font-size: 1.05rem; margin-bottom: 10px;">🔗 Webhook URL สำหรับรับข้อมูลอัตโนมัติ</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap;">
+              <h2 style="font-size: 1.05rem;">Webhook URL อัตโนมัติ (Cloudflare Tunnel)</h2>
+              <span class="badge-chip orange" id="tunnelStatusBadge">กำลังสร้าง Tunnel...</span>
+            </div>
             <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
-              ใส่ URL นี้ใน LINE Developers Console &gt; แท็บ Messaging API &gt; Webhook URL:
+              ระบบเปิด Cloudflare Tunnel และตั้งค่าเข้า LINE Developers ให้อัตโนมัติ (หรือคลิกเพื่อคัดลอก):
             </div>
             <div class="rec-id" style="font-size: 0.85rem; width: 100%; padding: 8px;" id="webhookUrlDisplay" onclick="copyId(this.innerText)">
               กำลังตรวจหา URL...
             </div>
-            <div class="form-hint" style="margin-top: 6px;">คลิกเพื่อคัดลอก (อย่าลืมเปิดสวิตช์ "Use webhook" ใน LINE Console ด้วยนะครับ)</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; flex-wrap: wrap;">
+              <div class="form-hint" id="webhookSyncHint">ระบบจะซิงก์ URL เข้า LINE อัตโนมัติทุกครั้งที่เปิดโปรแกรม</div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="syncWebhookNow()">ซิงก์เข้า LINE ตอนนี้</button>
+            </div>
           </div>
         </div>
 
@@ -612,7 +618,7 @@
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px;">
           <div>
             <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
-              <span>📋</span> บันทึกการทำงาน & รายงานข้อผิดพลาด (System Logs)
+              บันทึกการทำงาน & รายงานข้อผิดพลาด (System Logs)
             </h2>
             <div style="font-size: 0.8rem; color: var(--text-muted);">
               แสดงข้อผิดพลาดล่าสุดสำหรับกด <strong>"คัดลอก Log ทั้งหมด"</strong> ส่งให้ทีมงาน/โปรแกรมเมอร์แก้ไข
@@ -622,9 +628,9 @@
             <label style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; cursor: pointer;">
               <input type="checkbox" id="filterErrorOnly" onchange="renderLogs()"> เฉพาะ Error
             </label>
-            <button class="btn btn-outline btn-sm" onclick="fetchLogs()">🔄 รีเฟรช</button>
-            <button class="btn btn-primary btn-sm" onclick="copyAllLogs()">📋 คัดลอก Log ทั้งหมด (Copy)</button>
-            <button class="btn btn-outline btn-sm" onclick="clearLogs()" style="color: #fca5a5;">🧹 ล้าง Log</button>
+            <button class="btn btn-outline btn-sm" onclick="fetchLogs()">รีเฟรช</button>
+            <button class="btn btn-primary btn-sm" onclick="copyAllLogs()">คัดลอก Log ทั้งหมด (Copy)</button>
+            <button class="btn btn-outline btn-sm" onclick="clearLogs()" style="color: #fca5a5;">ล้าง Log</button>
           </div>
         </div>
         
@@ -639,13 +645,13 @@
   <div id="settingsModal" class="modal-backdrop">
     <div class="modal-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="font-size: 1.15rem;">⚙️ ตั้งค่าระบบ (Settings)</h2>
-        <button class="btn btn-outline btn-sm" onclick="closeSettingsModal()">✖ ปิด</button>
+        <h2 style="font-size: 1.15rem;">ตั้งค่าระบบ (Settings)</h2>
+        <button class="btn btn-outline btn-sm" onclick="closeSettingsModal()">ปิด (Esc)</button>
       </div>
 
       <form id="settingsForm" onsubmit="handleSaveSettings(event)">
         <!-- เวลาทำงานและการส่ง -->
-        <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 10px;">⏰ เวลาทำงานและรอบการส่งรายงาน</h3>
+        <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 10px;">เวลาทำงานและรอบการส่งรายงาน</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
           <div class="form-group">
             <label class="form-label" for="cfgLateTime">เวลาตัดสาย *</label>
@@ -665,13 +671,13 @@
         </div>
 
         <!-- การเชื่อมต่อ SQL Server -->
-        <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 10px; border-top: 1px solid var(--card-border); padding-top: 14px;">🗄️ การเชื่อมต่อฐานข้อมูล SQL Server</h3>
+        <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 10px; border-top: 1px solid var(--card-border); padding-top: 14px;">การเชื่อมต่อฐานข้อมูล SQL Server</h3>
         
         <div class="form-group">
           <label class="form-label" for="cfgAuthType">รูปแบบการยืนยันตัวตน (Authentication)</label>
           <select class="form-input" id="cfgAuthType" onchange="toggleAuthFields()">
-            <option value="windows">Windows Authentication (ไม่ต้องใช้รหัสผ่าน sa - แนะนำบน Windows 7)</option>
-            <option value="sql">SQL Server Authentication (ระบุ User sa และ Password)</option>
+            <option value="sql" selected>SQL Server Authentication (ระบุ User sa และ Password - แนะนำ)</option>
+            <option value="windows">Windows Authentication (ใช้สิทธิ์ Windows)</option>
             <option value="mock">โหมดจำลอง (Mock DB - เสมือนจริง ไม่ต้องเปิด SQL Server)</option>
           </select>
         </div>
@@ -679,13 +685,12 @@
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
           <div class="form-group">
             <label class="form-label" for="cfgDbHost">Server / Host / Instance *</label>
-            <input class="form-input" id="cfgDbHost" value="127.0.0.1\SQLEXPRES" placeholder="เช่น 127.0.0.1\SQLEXPRES หรือ SS-PC\SQLEXPRES">
+            <input class="form-input" id="cfgDbHost" value="127.0.0.1" placeholder="เช่น 127.0.0.1 หรือ SS-PC\SQLEXPRES">
             <div class="form-hint" style="margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
               คลิกเพื่อใส่:
+              <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='127.0.0.1'">127.0.0.1 (พอร์ต 1433)</span>
               <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='127.0.0.1\\SQLEXPRES'">127.0.0.1\SQLEXPRES</span>
               <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='SS-PC\\SQLEXPRES'">SS-PC\SQLEXPRES</span>
-              <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='.\\SQLEXPRES'">.\SQLEXPRES</span>
-              <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='127.0.0.1'">127.0.0.1 (พอร์ต 1433)</span>
             </div>
           </div>
           <div class="form-group">
@@ -696,11 +701,15 @@
 
         <div class="form-group">
           <label class="form-label" for="cfgDbName">ชื่อฐานข้อมูล (Database Name) *</label>
-          <input class="form-input" id="cfgDbName" value="hiptime" placeholder="hiptime">
-          <div class="form-hint">ตามหน้าจอ HIP Time: hiptime</div>
+          <input class="form-input" id="cfgDbName" value="Synctime" placeholder="Synctime หรือ hiptime">
+          <div class="form-hint" style="margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            คลิกเพื่อใส่ (ระบบสลับหาให้อัตโนมัติ):
+            <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbName').value='Synctime'">Synctime</span>
+            <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbName').value='hiptime'">hiptime</span>
+          </div>
         </div>
 
-        <div id="sqlAuthFields" style="display: none;">
+        <div id="sqlAuthFields" style="display: block;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
               <label class="form-label" for="cfgDbUser">User</label>
@@ -708,21 +717,21 @@
             </div>
             <div class="form-group">
               <label class="form-label" for="cfgDbPass">Password</label>
-              <input type="password" class="form-input" id="cfgDbPass" placeholder="รหัสผ่าน sa (ถ้ามี)">
+              <input type="password" class="form-input" id="cfgDbPass" value="" placeholder="รหัสผ่าน sa">
             </div>
           </div>
         </div>
 
         <div class="form-group" style="margin-top: 8px;">
           <button type="button" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="testDbConnection()">
-            🔌 ทดสอบการเชื่อมต่อ Database ตอนนี้ (Live Connection Test)
+            ทดสอบการเชื่อมต่อ Database ตอนนี้ (Live Connection Test)
           </button>
           <div id="testDbResult" style="margin-top: 8px; font-size: 0.85rem; display: none;"></div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; border-top: 1px solid var(--card-border); padding-top: 14px;">
           <button type="button" class="btn btn-outline" onclick="closeSettingsModal()">ยกเลิก</button>
-          <button type="submit" class="btn btn-primary">💾 บันทึกการตั้งค่า</button>
+          <button type="submit" class="btn btn-primary">บันทึกการตั้งค่า</button>
         </div>
       </form>
     </div>
@@ -733,9 +742,9 @@
     <div class="modal-card" style="max-width: 580px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h2 style="font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
-          <span>💬</span> ตั้งค่าเชื่อมต่อ LINE Messaging API
+          ตั้งค่าเชื่อมต่อ LINE Messaging API
         </h2>
-        <button class="btn btn-outline btn-sm" onclick="closeLineModal()">✖ ปิด</button>
+        <button class="btn btn-outline btn-sm" onclick="closeLineModal()">ปิด (Esc)</button>
       </div>
 
       <!-- Bot Profile Status Box -->
@@ -760,9 +769,9 @@
             Channel Access Token (Long-lived) *
           </label>
           <div style="position: relative;">
-            <input type="password" class="form-input" id="cfgLineToken" placeholder="วาง Channel Access Token จาก LINE Developers Console" required style="padding-right: 80px; font-family: monospace; font-size: 0.85rem;">
+            <input type="password" class="form-input" id="cfgLineToken" placeholder="มี Token ในระบบแล้ว (วางใหม่เฉพาะเมื่อต้องการเปลี่ยน)" style="padding-right: 80px; font-family: monospace; font-size: 0.85rem;">
             <button type="button" onclick="toggleTokenVisibility('cfgLineToken', this)" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 0.8rem; padding: 4px;">
-              👁️ แสดง
+              แสดง
             </button>
           </div>
           <div class="form-hint">ได้จาก LINE Developers &gt; Channel ของคุณ &gt; แท็บ Messaging API &gt; Channel access token</div>
@@ -775,7 +784,7 @@
           <div style="position: relative;">
             <input type="password" class="form-input" id="cfgLineSecret" placeholder="วาง Channel Secret จากแท็บ Basic settings" style="padding-right: 80px; font-family: monospace; font-size: 0.85rem;">
             <button type="button" onclick="toggleTokenVisibility('cfgLineSecret', this)" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 0.8rem; padding: 4px;">
-              👁️ แสดง
+              แสดง
             </button>
           </div>
           <div class="form-hint">ได้จากแท็บ Basic settings &gt; Channel secret (ใช้ป้องกันการยิง Webhook ปลอม)</div>
@@ -785,7 +794,7 @@
           <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.9rem;">
             <input type="checkbox" id="cfgAutoAdd" checked style="margin-top: 3px; accent-color: #06c755;">
             <div>
-              <strong style="color: #4ade80;">⚡ เพิ่มทุกคนที่แอดเพื่อนเข้าเป็นผู้รับรายงานอัตโนมัติ (Auto-Add)</strong>
+              <strong style="color: #4ade80;">[เปิดใช้งาน] เพิ่มทุกคนที่แอดเพื่อนเข้าเป็นผู้รับรายงานอัตโนมัติ (Auto-Add)</strong>
               <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
                 เมื่อมีครู/บุคลากร แอดไลน์บอท หรือดึงบอทเข้ากลุ่ม ระบบจะบันทึกชื่อและเปิดสวิตช์รับรายงานประจำวัน 09:30 น. ให้อัตโนมัติทันที
               </div>
@@ -797,15 +806,15 @@
           <label class="form-label" for="cfgWelcomeMsg">
             ข้อความตอบกลับเมื่อแอดเพื่อน (เว้นว่างไว้จะใช้ข้อความเริ่มต้นของระบบ)
           </label>
-          <textarea class="form-input" id="cfgWelcomeMsg" rows="2" placeholder="สวัสดีครับคุณ {name} 👋 ยินดีต้อนรับสู่ระบบรายงานเวลาทำงาน..."></textarea>
+          <textarea class="form-input" id="cfgWelcomeMsg" rows="2" placeholder="สวัสดีครับคุณ {name} ยินดีต้อนรับสู่ระบบรายงานเวลาทำงาน..."></textarea>
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 14px;">
           <button type="button" class="btn btn-outline" style="flex: 1; justify-content: center;" onclick="testLineToken()">
-            🔌 ทดสอบเชื่อมต่อ Token
+            ทดสอบเชื่อมต่อ Token
           </button>
           <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">
-            💾 บันทึกการเชื่อมต่อ LINE
+            บันทึกการเชื่อมต่อ LINE
           </button>
         </div>
         <div id="testLineResult" style="margin-top: 10px; font-size: 0.85rem; display: none;"></div>
@@ -814,7 +823,7 @@
       <!-- Webhook Helper Box -->
       <div class="help-box" style="margin-top: 18px; border-left: 3px solid #06c755; background: rgba(0,0,0,0.3);">
         <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: #4ade80;">
-          📌 ขั้นตอนเชื่อมต่อ Webhook ใน LINE Developers Console:
+          ขั้นตอนเชื่อมต่อ Webhook ใน LINE Developers Console:
         </div>
         <ol style="font-size: 0.8rem; color: var(--text-muted); padding-left: 18px; line-height: 1.6;">
           <li>เปิด <a href="https://developers.line.biz/console/" target="_blank" style="color: var(--accent); text-decoration: underline;">LINE Developers Console</a> แล้วเลือก Channel ของคุณ</li>
@@ -932,8 +941,8 @@
           } else if (data.db_connected) {
             document.getElementById("dbStatusBadge").innerText = "เชื่อมต่อแล้ว";
             document.getElementById("dbStatusBadge").className = "badge-chip green";
-            document.getElementById("dbStatusText").innerText = "hiptime (OK)";
-            document.getElementById("dbHostDisplay").innerText = "SQL Server 2012";
+            document.getElementById("dbStatusText").innerText = (data.db_name || "Synctime") + " (OK)";
+            document.getElementById("dbHostDisplay").innerText = "Host: " + (data.db_host || "127.0.0.1");
           } else {
             document.getElementById("dbStatusBadge").innerText = "มีข้อผิดพลาด";
             document.getElementById("dbStatusBadge").className = "badge-chip red";
@@ -942,13 +951,32 @@
           }
         }
 
-        document.getElementById("previewText").innerText = data.preview_text || "ไม่มีข้อมูล";
+        document.getElementById("previewText").innerHTML = formatPreviewForWeb(data.preview_text);
 
-        // Webhook URL
+        // Webhook URL & Cloudflare Tunnel status
         const host = window.location.origin;
-        document.getElementById("webhookUrlDisplay").innerText = host + "/webhook";
+        const tun = data.tunnel || {};
+        const effectiveWh = tun.webhook_url || (host + "/webhook");
+        document.getElementById("webhookUrlDisplay").innerText = effectiveWh;
         const modalWh = document.getElementById("lineModalWebhook");
-        if (modalWh) modalWh.innerText = host + "/webhook";
+        if (modalWh) modalWh.innerText = effectiveWh;
+
+        const tunBadge = document.getElementById("tunnelStatusBadge");
+        const syncHint = document.getElementById("webhookSyncHint");
+        if (tunBadge) {
+          if (tun.webhook_synced && tun.webhook_url) {
+            tunBadge.innerText = "ซิงก์เข้า LINE อัตโนมัติแล้ว";
+            tunBadge.className = "badge-chip green";
+            if (syncHint) syncHint.innerText = "พร้อมรับ ID อัตโนมัติเมื่อมีคนทักแชทหรือแอดเพื่อนบอท";
+          } else if (tun.webhook_url) {
+            tunBadge.innerText = "Tunnel พร้อมใช้งาน";
+            tunBadge.className = "badge-chip green";
+            if (syncHint) syncHint.innerText = tun.sync_error ? ("คำเตือนซิงก์: " + tun.sync_error) : "กดปุ่ม 'ซิงก์เข้า LINE ตอนนี้' เพื่ออัปเดตปลายทาง";
+          } else {
+            tunBadge.innerText = "กำลังเปิด Cloudflare Tunnel...";
+            tunBadge.className = "badge-chip orange";
+          }
+        }
 
         // Update LINE header status indicator & Auto-Add badge
         const dot = document.getElementById("lineHeaderDot");
@@ -957,7 +985,7 @@
         }
         const autoBadge = document.getElementById("autoAddBadge");
         if (autoBadge) {
-          autoBadge.innerText = data.auto_add_recipients ? "⚡ Auto-Add: เปิด" : "✋ Auto-Add: ปิด";
+          autoBadge.innerText = data.auto_add_recipients ? "Auto-Add: เปิด" : "Auto-Add: ปิด";
           autoBadge.className = data.auto_add_recipients ? "badge-chip green" : "badge-chip orange";
         }
 
@@ -971,6 +999,25 @@
       }
     }
 
+    const iconGroup = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+    const iconUser = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+    function formatPreviewForWeb(raw) {
+      if (!raw) return '<span style="color:var(--text-muted)">ไม่มีข้อมูล</span>';
+      let safe = escapeHtml(raw)
+        .replace(/📊\s*/g, '<span class="badge-chip" style="background:#0284c7; color:#fff; font-size:0.75rem; margin-right:4px;">สรุป</span>')
+        .replace(/👥\s*/g, '<span class="badge-chip" style="background:#475569; color:#fff; font-size:0.75rem; margin-right:4px;">รวม</span>')
+        .replace(/✅\s*/g, '<span class="badge-chip green" style="font-size:0.75rem; margin-right:4px;">ปกติ</span>')
+        .replace(/⏰\s*/g, '<span class="badge-chip orange" style="font-size:0.75rem; margin-right:4px;">สาย</span>')
+        .replace(/❌\s*/g, '<span class="badge-chip red" style="font-size:0.75rem; margin-right:4px;">ขาด</span>')
+        .replace(/📝\s*/g, '<span class="badge-chip" style="background:#8b5cf6; color:#fff; font-size:0.75rem; margin-right:4px;">ลา</span>')
+        .replace(/⏳\s*/g, '<span class="badge-chip" style="background:#64748b; color:#fff; font-size:0.75rem; margin-right:4px;">รอ</span>')
+        .replace(/🎉\s*/g, '<span class="badge-chip green" style="font-size:0.75rem; margin-right:4px;">วันหยุด</span>');
+
+      // Strip any other emojis that turn into square boxes on Windows 7
+      safe = safe.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]/g, '');
+      return safe.replace(/\n/g, '<br>');
+    }
 
     function renderDiscovered(discoveredList, recipientsList) {
       const el = document.getElementById("discoveredList");
@@ -990,7 +1037,7 @@
         const safePic = (item.picture_url && item.picture_url.startsWith("http")) ? item.picture_url : "";
         const avatarImg = safePic
           ? `<img src="${escapeHtml(safePic)}" alt="">`
-          : (isGroup ? '👥' : '👤');
+          : (isGroup ? iconGroup : iconUser);
 
         return `
           <div class="recipient-item" style="border-color: rgba(6, 199, 85, 0.3);">
@@ -1006,10 +1053,10 @@
             </div>
             <div class="rec-actions">
               <button class="btn btn-success-soft btn-sm" onclick="addFromDiscovered('${item.id}')">
-                ➕ เพิ่มคนนี้
+                + เพิ่มคนนี้
               </button>
               <button class="btn btn-outline btn-sm" onclick="dismissDiscovered('${item.id}')" title="ละเว้น">
-                ✕
+                ละเว้น
               </button>
             </div>
           </div>
@@ -1028,7 +1075,7 @@
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "เพิ่มไม่สำเร็จ");
-        showToast(`✅ เพิ่ม "${name || id}" เป็นผู้รับรายงานเรียบร้อยแล้ว`);
+        showToast(`เพิ่ม "${name || id}" เป็นผู้รับรายงานเรียบร้อยแล้ว`);
         loadStatus();
       } catch (err) {
         showToast(err.message, false);
@@ -1060,7 +1107,7 @@
         return `
           <div class="recipient-item">
             <div class="rec-info">
-              <div class="avatar">${isGroup ? '👥' : '👤'}</div>
+              <div class="avatar">${isGroup ? iconGroup : iconUser}</div>
               <div class="rec-texts">
                 <div class="rec-name">${escapeHtml(r.name || 'ผู้ใช้งาน')}</div>
                 <div class="rec-id" title="คลิกเพื่อคัดลอก" onclick="copyId('${r.id}')">${escapeHtml(r.id)}</div>
@@ -1068,14 +1115,14 @@
             </div>
             <div class="rec-actions">
               <button class="btn btn-outline btn-sm" onclick="testSend('${r.id}')" title="ทดสอบส่งข้อความหาคนนี้">
-                ✉️ ทดสอบ
+                ส่งทดสอบ
               </button>
               <label class="switch" title="เปิด/ปิดการรับรายงาน">
                 <input type="checkbox" ${r.active ? 'checked' : ''} onchange="toggleActive('${r.id}', this.checked)">
                 <span class="slider"></span>
               </label>
               <button class="btn btn-danger btn-sm" onclick="deleteRecipient('${r.id}')" title="ลบ">
-                🗑️
+                ลบ
               </button>
             </div>
           </div>
@@ -1151,7 +1198,7 @@
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "ส่งไม่สำเร็จ");
-        showToast("✅ ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว!");
+        showToast("ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว!");
       } catch (err) {
         showToast("ส่งไม่สำเร็จ: " + err.message, false);
       }
@@ -1167,7 +1214,7 @@
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "ส่งไม่สำเร็จ");
-        showToast("✅ " + data.message);
+        showToast(data.message);
         loadStatus();
       } catch (err) {
         showToast("ส่งไม่สำเร็จ: " + err.message, false);
@@ -1254,7 +1301,7 @@
       }).join('\n');
 
       navigator.clipboard.writeText(fullText).then(() => {
-        showToast("📋 คัดลอก Log ทั้งหมดเข้า Clipboard เรียบร้อยแล้ว (นำไปวางส่งต่อได้ทันที)");
+        showToast("คัดลอก Log ทั้งหมดเข้า Clipboard เรียบร้อยแล้ว (นำไปวางส่งต่อได้ทันที)");
       }).catch(() => {
         showToast("ไม่สามารถเข้าถึง Clipboard ได้", false);
       });
@@ -1285,11 +1332,11 @@
         document.getElementById("cfgLateTime").value = cfg.late_time || "07:30";
         document.getElementById("cfgAutoDlTime").value = cfg.auto_download_time || "09:00";
         document.getElementById("cfgSendTimes").value = (cfg.send_times || ["09:30"]).join(", ");
-        document.getElementById("cfgDbHost").value = cfg.db_host || "SS-PC\\SQLEXPRES";
+        document.getElementById("cfgDbHost").value = cfg.db_host || "127.0.0.1";
         document.getElementById("cfgDbPort").value = cfg.db_port || 1433;
         document.getElementById("cfgDbName").value = cfg.db_name || "hiptime";
         document.getElementById("cfgDbUser").value = cfg.db_user || "sa";
-        document.getElementById("cfgDbPass").value = "";
+        document.getElementById("cfgDbPass").value = cfg.db_password || "";
         
         const authSel = document.getElementById("cfgAuthType");
         if (cfg.mock_mode) {
@@ -1320,7 +1367,7 @@
     async function testDbConnection() {
       const resBox = document.getElementById("testDbResult");
       resBox.style.display = "block";
-      resBox.innerHTML = '<span style="color: #38bdf8;">⏳ กำลังทดสอบเชื่อมต่อฐานข้อมูล...</span>';
+      resBox.innerHTML = '<span style="color: #38bdf8;">กำลังทดสอบเชื่อมต่อฐานข้อมูล...</span>';
 
       const mode = document.getElementById("cfgAuthType").value;
       const payload = {
@@ -1343,15 +1390,15 @@
         if (data.ok) {
           resBox.innerHTML = `
             <div style="background: rgba(6,199,85,0.15); border: 1px solid rgba(6,199,85,0.4); color: #86efac; padding: 10px; border-radius: 6px;">
-              ✅ <strong>${escapeHtml(data.message)}</strong><br>
+              [สำเร็จ] <strong>${escapeHtml(data.message)}</strong><br>
               ฐานข้อมูล: <code>${escapeHtml(data.database)}</code> | พนักงาน: <strong>${data.employee_count}</strong> คน
             </div>
           `;
         } else {
           resBox.innerHTML = `
             <div style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; padding: 10px; border-radius: 6px;">
-              ❌ <strong>เชื่อมต่อไม่สำเร็จ:</strong> ${escapeHtml(data.error)}<br>
-              💡 <strong>คำแนะนำ:</strong> ${escapeHtml(data.advice || "ตรวจสอบ IP และรหัสผ่าน")}
+              [ไม่สำเร็จ] <strong>เชื่อมต่อไม่สำเร็จ:</strong> ${escapeHtml(data.error)}<br>
+              [คำแนะนำ] <strong>คำแนะนำ:</strong> ${escapeHtml(data.advice || "ตรวจสอบ IP และรหัสผ่าน")}
             </div>
           `;
         }
@@ -1390,7 +1437,7 @@
         });
         const data = await res.json();
         if (!data.ok) throw new Error("บันทึกไม่สำเร็จ");
-        showToast("💾 บันทึกการตั้งค่าเรียบร้อยแล้ว!");
+        showToast("บันทึกการตั้งค่าเรียบร้อยแล้ว!");
         closeSettingsModal();
         loadStatus();
       } catch (err) {
@@ -1399,16 +1446,34 @@
     }
 
     // ================== LINE CONNECTION MODAL ==================
+    async function syncWebhookNow() {
+      try {
+        showToast("กำลังซิงก์ Webhook URL เข้า LINE Developers...", true);
+        const res = await authFetch("/api/sync-webhook", { method: "POST" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "ซิงก์ไม่สำเร็จ");
+        showToast(data.message || "ซิงก์ Webhook URL สำเร็จ!");
+        loadStatus();
+      } catch (e) {
+        showToast("ซิงก์ไม่สำเร็จ: " + e.message, false);
+      }
+    }
+
     async function openLineModal() {
       try {
         const res = await authFetch("/api/line-info");
         const data = await res.json();
 
         const host = window.location.origin;
+        const tun = data.tunnel || {};
         const modalWh = document.getElementById("lineModalWebhook");
-        if (modalWh) modalWh.innerText = host + "/webhook";
+        if (modalWh) modalWh.innerText = tun.webhook_url || data.webhook_endpoint || (host + "/webhook");
 
-        document.getElementById("cfgLineToken").value = "";
+        const tokInp = document.getElementById("cfgLineToken");
+        tokInp.value = "";
+        tokInp.placeholder = data.has_token
+          ? `ตั้งค่าไว้แล้ว (${data.token_preview || "พร้อมใช้งาน"}) — เว้นว่างหากไม่เปลี่ยน`
+          : "วาง Channel Access Token จาก LINE Developers Console";
         document.getElementById("cfgLineSecret").value = "";
         document.getElementById("cfgAutoAdd").checked = data.auto_add_recipients !== false;
         document.getElementById("cfgWelcomeMsg").value = data.welcome_message || "";
@@ -1429,10 +1494,10 @@
       const inp = document.getElementById(inputId);
       if (inp.type === "password") {
         inp.type = "text";
-        btn.innerText = "🔒 ซ่อน";
+        btn.innerText = "ซ่อน";
       } else {
         inp.type = "password";
-        btn.innerText = "👁️ แสดง";
+        btn.innerText = "แสดง";
       }
     }
 
@@ -1444,7 +1509,7 @@
 
       if (info && info.displayName) {
         nameEl.innerText = info.displayName;
-        badgeEl.innerText = "🟢 เชื่อมต่อแล้ว";
+        badgeEl.innerText = "เชื่อมต่อแล้ว";
         badgeEl.className = "badge-chip green";
         subEl.innerText = `LINE ID: ${info.basicId || info.userId} | โหมด: ${info.chatMode || "bot"}`;
         if (info.pictureUrl) {
@@ -1452,12 +1517,12 @@
         }
       } else if (hasToken) {
         nameEl.innerText = "มี Token ในระบบ แต่ไม่สามารถเชื่อมต่อได้";
-        badgeEl.innerText = "❌ เกิดข้อผิดพลาด";
+        badgeEl.innerText = "เกิดข้อผิดพลาด";
         badgeEl.className = "badge-chip red";
         subEl.innerText = error ? `ข้อผิดพลาด: ${error}` : "Token อาจหมดอายุหรือไม่ถูกต้อง";
       } else {
         nameEl.innerText = "ยังไม่ได้เชื่อมต่อ LINE บอท";
-        badgeEl.innerText = "⚠️ ยังไม่ได้เชื่อม";
+        badgeEl.innerText = "ยังไม่ได้เชื่อม";
         badgeEl.className = "badge-chip orange";
         subEl.innerText = "กรุณากรอก Channel Access Token ด้านล่างเพื่อเริ่มใช้งาน";
       }
@@ -1468,7 +1533,7 @@
       const secret = document.getElementById("cfgLineSecret").value.trim();
       const resBox = document.getElementById("testLineResult");
       resBox.style.display = "block";
-      resBox.innerHTML = '<span style="color: #38bdf8;">⏳ กำลังติดต่อ LINE Messaging API เพื่อตรวจสอบ Token...</span>';
+      resBox.innerHTML = '<span style="color: #38bdf8;">กำลังติดต่อ LINE Messaging API เพื่อตรวจสอบ Token...</span>';
 
       try {
         const res = await authFetch("/api/test-line-token", {
@@ -1481,15 +1546,15 @@
           updateBotCard(data.bot_info, true, "");
           resBox.innerHTML = `
             <div style="background: rgba(6,199,85,0.15); border: 1px solid rgba(6,199,85,0.4); color: #86efac; padding: 10px; border-radius: 6px;">
-              ✅ <strong>เชื่อมต่อ LINE API สำเร็จ!</strong><br>
+              [สำเร็จ] <strong>เชื่อมต่อ LINE API สำเร็จ!</strong><br>
               ชื่อบอท: <strong>${escapeHtml(data.bot_info.displayName)}</strong> (${escapeHtml(data.bot_info.basicId || "")})
             </div>
           `;
         } else {
           resBox.innerHTML = `
             <div style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; padding: 10px; border-radius: 6px;">
-              ❌ <strong>เชื่อมต่อไม่สำเร็จ:</strong> ${escapeHtml(data.error || "Token ไม่ถูกต้อง")}<br>
-              💡 <strong>คำแนะนำ:</strong> ตรวจสอบว่าคัดลอก Channel access token (long-lived) มาครบถ้วนหรือไม่
+              [ไม่สำเร็จ] <strong>เชื่อมต่อไม่สำเร็จ:</strong> ${escapeHtml(data.error || "Token ไม่ถูกต้อง")}<br>
+              [คำแนะนำ] <strong>คำแนะนำ:</strong> ตรวจสอบว่าคัดลอก Channel access token (long-lived) มาครบถ้วนหรือไม่
             </div>
           `;
         }
@@ -1524,7 +1589,7 @@
         });
         const data = await res.json();
         if (!data.ok) throw new Error("บันทึกไม่สำเร็จ");
-        showToast("💾 บันทึกการเชื่อมต่อ LINE เรียบร้อยแล้ว!");
+        showToast("บันทึกการเชื่อมต่อ LINE เรียบร้อยแล้ว!");
         closeLineModal();
         loadStatus();
       } catch (err) {
