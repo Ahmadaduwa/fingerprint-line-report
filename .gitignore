@@ -10,6 +10,8 @@ line-report/.env.*
 # Runtime persistent data
 data/
 line-report/data/
+go-stw/data/
+release-windows7/data/
 *.json.tmp
 *.log
 

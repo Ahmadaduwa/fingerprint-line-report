@@ -9,3 +9,6 @@
 - [x] Task 7: เขียน Unit Test ตรวจสอบ Mock Mode, Windows Auth format, และ Syntax Compatibility (27/27 ผ่าน)
 - [x] Task 8: เพิ่มระบบบันทึก Log ข้อผิดพลาด (`log_buffer.py`) พร้อมปุ่ม Copy Log บนหน้าเว็บ เพื่อให้ก๊อปส่งให้นายดูได้สะดวก
 - [x] Task 9: เพิ่มการตั้งค่าผ่านหน้าเว็บ (`settings.py`) โดยตั้งค่าเริ่มต้น: ตัดสาย 07:30 น., Auto Download 09:00 น., และส่ง LINE 09:30 น.
+- [x] Task 10: สร้างโปรเจกต์ Go (`go-stw`) ใช้ Go 1.20 (รองรับ Windows 7 32-bit โดยไม่ต้องอัปเดต Windows)
+- [x] Task 11: Implement Attendance Calculator, Pure Go SQL Server Client (`go-mssqldb`), Mock DB, Web UI (embedded HTML), Log Buffer & Settings JSON
+- [x] Task 12: Cross-compile เป็น Windows 32-bit PE executable (`STW_TeacherCheck.exe` & `STW_TeacherCheck_Silent.exe`) บรรจุในโฟลเดอร์ `release-windows7` พร้อม batch สคริปต์ autostart
