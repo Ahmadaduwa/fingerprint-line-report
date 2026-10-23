@@ -679,7 +679,13 @@
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
           <div class="form-group">
             <label class="form-label" for="cfgDbHost">Server / Host / Instance *</label>
-            <input class="form-input" id="cfgDbHost" value=".\SQLEXPRESS" placeholder="เช่น .\SQLEXPRESS หรือ 127.0.0.1">
+            <input class="form-input" id="cfgDbHost" value="SS-PC\SQLEXPRES" placeholder="เช่น SS-PC\SQLEXPRES หรือ .\SQLEXPRES">
+            <div class="form-hint" style="margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+              คลิกเพื่อใส่:
+              <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='SS-PC\\SQLEXPRES'">SS-PC\SQLEXPRES</span>
+              <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='.\\SQLEXPRES'">.\SQLEXPRES</span>
+              <span class="rec-id" style="padding: 2px 6px; cursor: pointer;" onclick="document.getElementById('cfgDbHost').value='localhost'">localhost</span>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label" for="cfgDbPort">Port</label>
@@ -1278,7 +1284,7 @@
         document.getElementById("cfgLateTime").value = cfg.late_time || "07:30";
         document.getElementById("cfgAutoDlTime").value = cfg.auto_download_time || "09:00";
         document.getElementById("cfgSendTimes").value = (cfg.send_times || ["09:30"]).join(", ");
-        document.getElementById("cfgDbHost").value = cfg.db_host || ".\\SQLEXPRESS";
+        document.getElementById("cfgDbHost").value = cfg.db_host || "SS-PC\\SQLEXPRES";
         document.getElementById("cfgDbPort").value = cfg.db_port || 1433;
         document.getElementById("cfgDbName").value = cfg.db_name || "hiptime";
         document.getElementById("cfgDbUser").value = cfg.db_user || "sa";

@@ -44,7 +44,7 @@ func DefaultSettings() Settings {
 		AutoDownloadTime:  "09:00",
 		SendTimes:         []string{"09:30"},
 		LateGraceMinutes:  0,
-		DBHost:            `.\\SQLEXPRESS`,
+		DBHost:            `SS-PC\SQLEXPRES`,
 		DBPort:            1433,
 		DBName:            "hiptime",
 		DBUser:            "sa",
