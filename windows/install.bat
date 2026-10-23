@@ -27,11 +27,20 @@ echo [1/3] ตรวจพบ Python:
 python --version
 echo.
 
-:: 2. ติดตั้ง Dependencies
-echo [2/3] กำลังติดตั้ง Dependencies (pymssql, requests, sqlalchemy)...
+:: 2. ติดตั้ง Dependencies และเตรียมไฟล์คอนฟิก
+echo [2/3] กำลังเตรียมไฟล์คอนฟิกและติดตั้ง Dependencies...
 cd /d "%~dp0..\line-report"
+
+if not exist ".env" (
+    if exist ".env.example" (
+        copy /y ".env.example" ".env" >nul
+        echo [OK] สร้างไฟล์ .env จาก .env.example ให้อัตโนมัติแล้ว
+    )
+)
+
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+
 if %errorlevel% neq 0 (
     echo [WARNING] มีแพ็กเกจบางตัวลงไม่สำเร็จ กำลังลองติดตั้งพื้นฐาน...
     python -m pip install pymssql requests sqlalchemy

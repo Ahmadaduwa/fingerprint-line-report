@@ -12,7 +12,14 @@ echo กำลังเปิด Web UI ที่ http://localhost:8090 ...
 echo กด Ctrl+C เพื่อหยุดการทำงาน
 echo.
 
+if not exist "%~dp0..\line-report\.env" (
+    if exist "%~dp0..\line-report\.env.example" (
+        copy /y "%~dp0..\line-report\.env.example" "%~dp0..\line-report\.env" >nul
+    )
+)
+
 cd /d "%~dp0..\line-report\app"
 python main.py
+
 
 pause
