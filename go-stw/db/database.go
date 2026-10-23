@@ -107,7 +107,9 @@ func (s *SQLServerDB) TestConnection() map[string]interface{} {
 	if err := s.db.Ping(); err != nil {
 		errStr := err.Error()
 		advice := "ตรวจสอบชื่อ Server/Instance และเปิดพอร์ต 1433 ใน SQL Server Configuration Manager"
-		if strings.Contains(errStr, "Login failed") {
+		if strings.Contains(errStr, "Sql Server Browser") {
+			advice = "บริการ 'SQL Server Browser' ปิดอยู่ กรุณาคลิกขวาที่ไฟล์ fix_sql_connection.bat แล้วเลือก 'Run as administrator' หรือเปิด services.msc สั่ง Start บริการ SQL Server Browser"
+		} else if strings.Contains(errStr, "Login failed") {
 			advice = "รหัสผ่าน SQL Server ('sa') ไม่ถูกต้อง หรือ Windows User ไม่มีสิทธิ์ sysadmin"
 		} else if strings.Contains(errStr, "Cannot open database") {
 			advice = fmt.Sprintf("ไม่พบฐานข้อมูล '%s' (ตรวจสอบว่าชื่อ hiptime ตรงกับในเครื่องหรือไม่)", s.database)
