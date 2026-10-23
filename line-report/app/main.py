@@ -1,13 +1,15 @@
 """
-สรุปการมา / สาย / ขาด / ลา จาก DB Synctime แล้วส่งเข้า LINE Messaging API
-พร้อม Web UI จัดการผู้รับรายงาน (พอร์ต 8090)
+สรุปการมา / สาย / ขาด / ลา จาก DB Synctime/hiptime แล้วส่งเข้า LINE Messaging API
+พร้อม Web UI จัดการผู้รับรายงาน, ตั้งค่าเวลา, และดู Log ข้อผิดพลาด (พอร์ต 8090)
 
-  python main.py                      รันเป็น service (Scheduler + Web UI)
+  python main.py                      รันเป็น background service (Scheduler + Web UI)
+  python main.py --mock               รันด้วยระบบจำลอง (ไม่ต้องต่อ SQL Server)
   python main.py --now                ส่งสรุปของวันนี้ทันที
-  python main.py --date 2026-10-17    ส่งสรุปของวันที่ระบุ
+  python main.py --date 2026-10-23    ส่งสรุปของวันที่ระบุ
   python main.py --dry-run [...]      แสดงข้อความ ไม่ส่ง LINE
   python main.py --check              ตรวจรูปแบบวันที่ในข้อมูลจริง
 """
+from __future__ import annotations
 import argparse
 import json
 import logging
@@ -15,34 +17,58 @@ import os
 import threading
 import time as _time
 from datetime import date, datetime, timedelta
+from typing import List, Optional
 
 from attendance import compute, parse_hm
 from db import SynctimeDB
 from line_api import LineClient
+from log_buffer import setup_logging
 import recipients
 from report import build_message, thai_date
+import settings
 from web import WebState, run_web_server
 
+# ติดตั้ง Logging ทั้ง File (data/app.log), Console, และ Memory Buffer สำหรับดูผ่านเว็บ
+setup_logging()
 log = logging.getLogger("line-report")
 
 
-def env(name, default=None):
+def env(name: str, default: Optional[str] = None) -> Optional[str]:
     v = os.environ.get(name, "").strip()
     return v if v else default
 
 
-def env_list(name):
-    return [x.strip() for x in env(name, "").split(",") if x.strip()]
+def env_list(name: str) -> List[str]:
+    return [x.strip() for x in (env(name, "") or "").split(",") if x.strip()]
 
 
-def load_db():
-    return SynctimeDB(host=env("DB_HOST", "sqlserver"), port=int(env("DB_PORT", "1433")),
-                      user=env("DB_USER", "sa"), password=env("DB_PASSWORD", ""),
-                      database=env("DB_NAME", "Synctime"))
+def load_db(is_mock: bool = False) -> SynctimeDB:
+    cfg = settings.load_settings()
+    mock_active = is_mock or cfg.get("mock_mode", False) or env("DB_MOCK", "0") == "1"
+
+    host = env("DB_HOST", cfg.get("db_host", "127.0.0.1"))
+    port = int(env("DB_PORT", str(cfg.get("db_port", 1433))))
+    user = env("DB_USER", cfg.get("db_user", "sa"))
+    password = env("DB_PASSWORD", cfg.get("db_password", ""))
+    database = env("DB_NAME", cfg.get("db_name", "hiptime"))
+    auth_type = env("DB_AUTH", cfg.get("db_auth", "auto"))
+
+    return SynctimeDB(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        auth_type=auth_type,
+        mock=mock_active,
+    )
 
 
-def make_report(db, day, now):
+def make_report(db: SynctimeDB, day: date, now: datetime):
+    cfg = settings.load_settings()
     school = db.school()
+    late_cutoff = parse_hm(cfg.get("late_time", "07:30"))
+
     summary = compute(
         day=day,
         people=db.people(levels=env_list("LEVELS") or None),
@@ -53,25 +79,30 @@ def make_report(db, day, now):
         holidays=db.holidays(),
         school=school,
         default_shift_code=env("DEFAULT_SHIFT"),
-        late_grace=int(env("LATE_GRACE_MINUTES", "0")),
+        late_grace=int(cfg.get("late_grace_minutes", 0)),
         now=now,
+        late_cutoff=late_cutoff,
     )
-    company = env("COMPANY_NAME", (school.get("schoolname") or "").strip())
+    company = cfg.get("company_name") or env("COMPANY_NAME", (school.get("schoolname") or "").strip())
 
     if summary.is_workday and summary.total_scans == 0 and summary.by("absent"):
-        # ไม่มีใครสแกนเลยทั้งวัน มักแปลว่ายังไม่ได้ดึง log จากเครื่องเข้า DB ไม่ใช่ทุกคนขาด
+        # ไม่มีใครสแกนเลยทั้งวัน มักแปลว่ายังไม่ได้ดึง log จากเครื่องเข้า DB
         return summary, (f"⚠️ สรุปการมาทำงาน {company}\n{thai_date(day)}\n\n"
                          "ยังไม่มีข้อมูลการสแกนของวันนี้ในระบบเลย\n"
-                         "ตรวจสอบว่าโปรแกรม HIP TIME ดึงข้อมูลจากเครื่องสแกนแล้วหรือยัง")
+                         "ตรวจสอบว่าโปรแกรม HIP TIME ดึงข้อมูลจากเครื่องสแกนแล้วหรือยัง (รอบ 09:00 น.)")
+
+    show_present = cfg.get("show_present", True)
     return summary, build_message(summary, company=company, now=now if day == now.date() else None,
-                                  show_present=env("SHOW_PRESENT", "1") == "1")
+                                  show_present=show_present)
 
 
-def run_once(db, token, day, dry_run=False, now=None):
+def run_once(db: SynctimeDB, token: Optional[str], day: date, dry_run: bool = False, now: Optional[datetime] = None):
     now = now or datetime.now()
     summary, text = make_report(db, day, now)
-    if not summary.is_workday and env("SEND_ON_DAYOFF", "0") != "1" and not summary.by("present"):
-        log.info("%s เป็นวันหยุด ไม่ส่ง", day)
+    cfg = settings.load_settings()
+
+    if not summary.is_workday and not cfg.get("send_on_dayoff", False) and env("SEND_ON_DAYOFF", "0") != "1" and not summary.by("present"):
+        log.info("%s เป็นวันหยุด ไม่ส่งรายงาน", day)
         return
     if dry_run or not token:
         print(text)
@@ -88,9 +119,10 @@ def run_once(db, token, day, dry_run=False, now=None):
 
     line = LineClient(token, targets)
     line.send_text(text)
+    log.info("ส่งสรุปการมาทำงานเข้า LINE ไปยัง %d ผู้รับ เรียบร้อยแล้ว", len(targets))
 
 
-def next_run(times, now):
+def next_run(times: List, now: datetime):
     cands = []
     for t in times:
         for d in (now.date(), now.date() + timedelta(days=1)):
@@ -100,9 +132,14 @@ def next_run(times, now):
     return min(cands) if cands else None
 
 
-def serve(db, token):
-    times = [t for t in (parse_hm(x) for x in env_list("SEND_TIMES") or ["09:00", "18:00"]) if t]
-    log.info("เริ่ม service ส่งเวลา %s", ", ".join(t.strftime("%H:%M") for t in sorted(times)))
+def serve(db: SynctimeDB, token: Optional[str]):
+    cfg = settings.load_settings()
+    configured_times = cfg.get("send_times") or ["09:30"]
+    times = [t for t in (parse_hm(x) for x in configured_times) if t]
+    if not times:
+        times = [parse_hm("09:30")]
+
+    log.info("เริ่มระบบ Service ส่งรายงาน LINE ทุกวันเวลา: %s", ", ".join(t.strftime("%H:%M") for t in sorted(times)))
 
     web_port = int(env("WEB_PORT", "8090"))
     web_thread = threading.Thread(
@@ -114,16 +151,23 @@ def serve(db, token):
     web_thread.start()
 
     while True:
-        at = next_run(times, datetime.now())
-        log.info("รอบถัดไป %s", at)
+        # อัปเดตเวลารอบถัดไปโดยคำนึงถึงการตั้งค่าล่าสุดจากหน้าเว็บ
+        current_cfg = settings.load_settings()
+        curr_times_raw = current_cfg.get("send_times") or ["09:30"]
+        active_times = [t for t in (parse_hm(x) for x in curr_times_raw) if t] or times
+        WebState.send_times = active_times
+
+        at = next_run(active_times, datetime.now())
+        log.info("รอบส่งรายงานถัดไป: %s", at)
         while (wait := (at - datetime.now()).total_seconds()) > 0:
-            _time.sleep(min(wait, 60))
+            _time.sleep(min(wait, 30))
+
         try:
             run_once(db, token, at.date(), now=at)
             WebState.last_run_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             WebState.last_run_status = "ส่งสำเร็จตามรอบเวลา"
         except Exception as e:
-            log.exception("ส่งสรุปไม่สำเร็จ")
+            log.exception("ส่งสรุปไม่สำเร็จ: %s", e)
             WebState.last_run_status = f"ส่งไม่สำเร็จ: {e}"
 
 
@@ -133,10 +177,10 @@ def main():
     ap.add_argument("--date", help="ส่งสรุปของวันที่ (YYYY-MM-DD)")
     ap.add_argument("--dry-run", action="store_true", help="แสดงข้อความ ไม่ส่ง LINE")
     ap.add_argument("--check", action="store_true", help="ตรวจรูปแบบวันที่ในข้อมูลจริง")
+    ap.add_argument("--mock", action="store_true", help="รันด้วยฐานข้อมูลจำลอง (เสมือนจริง)")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    db = load_db()
+    db = load_db(is_mock=args.mock)
     if args.check:
         print(json.dumps(db.check(), ensure_ascii=False, indent=2, default=str))
         return
@@ -145,7 +189,7 @@ def main():
     if not args.dry_run:
         token = env("LINE_CHANNEL_ACCESS_TOKEN")
         if not token:
-            raise SystemExit("ต้องตั้ง LINE_CHANNEL_ACCESS_TOKEN (หรือใช้ --dry-run)")
+            log.warning("ยังไม่ได้ตั้ง LINE_CHANNEL_ACCESS_TOKEN (สามารถตั้งค่าหรือดูหน้าเว็บได้ที่ http://localhost:8090)")
 
     if args.now or args.date or args.dry_run:
         day = date.fromisoformat(args.date) if args.date else date.today()

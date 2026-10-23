@@ -1,3 +1,4 @@
+from __future__ import annotations
 import hmac
 import json
 import logging
@@ -11,9 +12,12 @@ from urllib.parse import urlparse
 
 from discovered import get_discovered, record_discovered, remove_discovered
 from line_api import get_group_summary, get_profile, reply_text
+from log_buffer import get_log_buffer
 from recipients import add_recipient, get_active_target_ids, get_recipients, remove_recipient, toggle_recipient
 from report import thai_date
 from sanitizer import is_valid_target_id, sanitize_message, sanitize_text
+import settings
+
 
 log = logging.getLogger("line-web")
 
@@ -169,23 +173,43 @@ class RequestHandler(BaseHTTPRequestHandler):
             times = WebState.send_times or ["09:00", "18:00"]
             next_dt = next_run(times, now) if times else None
 
+            cfg = settings.load_settings()
             data = {
-                "company_name": company_name or "โรงเรียนแสงธรรมวิทยา",
+                "company_name": company_name or cfg.get("company_name", "โรงเรียนแสงธรรมวิทยา"),
                 "today_thai": thai_date(now.date()),
                 "recipients": recipients,
                 "discovered": get_discovered(),
                 "active_count": len(active_ids),
                 "send_times": [t.strftime("%H:%M") if hasattr(t, "strftime") else str(t) for t in times],
+                "late_time": cfg.get("late_time", "07:30"),
+                "auto_download_time": cfg.get("auto_download_time", "09:00"),
                 "next_run": next_dt.strftime("%Y-%m-%d %H:%M:%S") if next_dt else None,
                 "last_run_time": WebState.last_run_time,
                 "last_run_status": WebState.last_run_status,
                 "attendance": stats,
                 "preview_text": preview_text,
+                "db_connected": getattr(WebState.db, "is_connected", True) if WebState.db else False,
+                "mock_mode": getattr(WebState.db, "mock", False) if WebState.db else False,
             }
             self._send_json(data)
             return
 
+        if path == "/api/logs":
+            buf = get_log_buffer()
+            logs = buf.get_logs(limit=300)
+            self._send_json({"logs": logs, "count": len(logs)})
+            return
+
+        if path == "/api/settings":
+            cfg = settings.load_settings()
+            safe_cfg = dict(cfg)
+            if safe_cfg.get("db_password"):
+                safe_cfg["has_password"] = True
+            self._send_json(safe_cfg)
+            return
+
         self.send_error(404, "Not Found")
+
 
     def _read_json(self):
         try:
@@ -383,7 +407,56 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(e)}, status=500)
             return
 
+        # 6. บันทึกการตั้งค่าระบบ (Settings)
+        if path == "/api/settings":
+            saved = settings.save_settings(payload)
+            # ถ้ามีการเปลี่ยนการตั้งค่า DB และไม่ใช่ Mock ให้ reload DB
+            if WebState.db and not getattr(WebState.db, "mock", False):
+                try:
+                    from main import load_db
+                    WebState.db = load_db()
+                    log.info("รีโหลดการเชื่อมต่อฐานข้อมูลตามการตั้งค่าใหม่สำเร็จ")
+                except Exception as e:
+                    log.error("รีโหลดฐานข้อมูลไม่สำเร็จ: %s", e)
+            self._send_json({"ok": True, "settings": saved})
+            return
+
+        # 7. ทดสอบการเชื่อมต่อฐานข้อมูล (Test DB Connection)
+        if path == "/api/test-db":
+            from db import SynctimeDB
+            cfg = settings.load_settings()
+            test_host = payload.get("db_host") or cfg.get("db_host", "127.0.0.1")
+            test_port = int(payload.get("db_port") or cfg.get("db_port", 1433))
+            test_user = payload.get("db_user") or cfg.get("db_user", "sa")
+            test_pass = payload.get("db_password")
+            if test_pass is None or test_pass == "":
+                test_pass = cfg.get("db_password", "")
+            test_db_name = payload.get("db_name") or cfg.get("db_name", "hiptime")
+            test_auth = payload.get("db_auth") or cfg.get("db_auth", "auto")
+            test_mock = bool(payload.get("mock_mode", cfg.get("mock_mode", False)))
+
+            tmp_db = SynctimeDB(
+                host=test_host,
+                port=test_port,
+                user=test_user,
+                password=test_pass,
+                database=test_db_name,
+                auth_type=test_auth,
+                mock=test_mock,
+            )
+            res = tmp_db.test_connection()
+            self._send_json(res)
+            return
+
+        # 8. เคลียร์ Log
+        if path == "/api/logs/clear":
+            buf = get_log_buffer()
+            buf.clear()
+            self._send_json({"ok": True, "message": "ล้างบันทึกการทำงานเรียบร้อยแล้ว"})
+            return
+
         self.send_error(404, "Not Found")
+
 
 
 def run_web_server(db, token, send_times, port=8090):

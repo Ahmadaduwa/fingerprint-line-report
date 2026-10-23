@@ -1,7 +1,9 @@
 """คำนวณสถานะ มา / สาย / ขาด / ลา จากข้อมูล Synctime (ไม่ยุ่งกับ DB หรือ LINE)"""
+from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
+from typing import Optional
 
 # รูปแบบวันที่ที่เจอได้ในโปรแกรม HIP (คอลัมน์เก็บเป็น text) — ลองเรียงตามลำดับ
 _DT_FORMATS = [
@@ -56,8 +58,8 @@ def parse_hm(value):
 class Shift:
     code: str
     name: str
-    start: time | None
-    end: time | None
+    start: Optional[time]
+    end: Optional[time]
 
     @property
     def is_dayoff(self):
@@ -70,35 +72,36 @@ class Person:
     enroll: int
     code: str
     name: str
-    level: str | None = None
-    shift_code: str | None = None
+    level: Optional[str] = None
+    shift_code: Optional[str] = None
 
 
 @dataclass
 class Result:
     person: Person
     status: str  # present | late | absent | leave | pending | dayoff
-    first_scan: datetime | None = None
-    last_scan: datetime | None = None
+    first_scan: Optional[datetime] = None
+    last_scan: Optional[datetime] = None
     late_minutes: int = 0
-    shift: Shift | None = None
-    leave_name: str | None = None
+    shift: Optional[Shift] = None
+    leave_name: Optional[str] = None
 
 
 @dataclass
 class Summary:
     day: date
     is_workday: bool
-    holiday: str | None
+    holiday: Optional[str]
     results: list = field(default_factory=list)
     total_scans: int = 0
+
 
     def by(self, status):
         return [r for r in self.results if r.status == status]
 
 
 def compute(day, people, scans, shifts, daily_shift, leaves, holidays, school,
-            default_shift_code=None, late_grace=0, now=None):
+            default_shift_code=None, late_grace=0, now=None, late_cutoff=None):
     """
     day          : date ที่จะสรุป
     people       : list[Person] (active)
@@ -108,15 +111,18 @@ def compute(day, people, scans, shifts, daily_shift, leaves, holidays, school,
     leaves       : dict studentcode -> leave name (TranLeave ของวันนั้น)
     holidays     : dict date -> reason
     school       : dict แถว School (ใช้ starttime/endtime และวันทำงาน)
+    late_cutoff  : time กำหนดเวลาตัดสาย เช่น time(7, 30)
     """
     now = now or datetime.now()
     holiday = holidays.get(day)
     weekday_on = bool(int(school.get(WEEKDAY_COLS[day.weekday()]) or 0))
     is_workday = weekday_on and holiday is None
 
-    school_shift = Shift("", "เวลาทำงานบริษัท", parse_hm(school.get("starttime")), parse_hm(school.get("endtime")))
+    effective_start = late_cutoff or parse_hm(school.get("starttime")) or time(7, 30)
+    school_shift = Shift("", "เวลาทำงานบริษัท", effective_start, parse_hm(school.get("endtime")))
     fallback = shifts.get(default_shift_code) if default_shift_code else None
     fallback = fallback or school_shift
+
 
     summary = Summary(day=day, is_workday=is_workday, holiday=holiday,
                       total_scans=sum(len(v) for v in scans.values()))

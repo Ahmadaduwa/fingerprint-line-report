@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE Report - ระบบสรุปเวลาสแกนนิ้วเข้างาน</title>
+  <title>STW_TeacherCheck - ระบบสรุปเวลาสแกนนิ้วเข้างาน</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -379,8 +379,53 @@
       border-radius: 4px;
       margin-left: 6px;
     }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-card {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    }
+
+    /* Log Box */
+    .log-terminal {
+      background: #020617;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      height: 260px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log-line { margin-bottom: 4px; padding: 2px 4px; border-radius: 3px; }
+    .log-line.error { color: #f87171; background: rgba(239, 68, 68, 0.12); font-weight: 600; }
+    .log-line.warning { color: #fbbf24; background: rgba(245, 158, 11, 0.1); }
+    .log-line.info { color: #38bdf8; }
   </style>
 </head>
+
 <body>
 
   <div class="container">
@@ -428,6 +473,8 @@
           </div>
         </div>
         <div class="header-actions">
+          <button class="btn btn-outline" onclick="openSettingsModal()">⚙️ ตั้งค่าระบบ</button>
+          <button class="btn btn-outline" onclick="scrollToLogs()">📋 ดู Log</button>
           <button class="btn btn-outline" onclick="loadStatus()">🔄 รีเฟรช</button>
           <button class="btn btn-primary" onclick="sendNow()">🚀 ส่งรายงานตอนนี้</button>
           <button class="btn btn-outline" onclick="handleLogout()" title="ออกจากระบบ" style="color: #fca5a5;">🚪 ออกจากระบบ</button>
@@ -435,7 +482,7 @@
       </header>
 
       <!-- Stats Cards -->
-      <div class="grid-stats">
+      <div class="grid-stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
         <div class="card">
           <div class="card-title">
             <span>เวลาส่งอัตโนมัติ</span>
@@ -447,21 +494,32 @@
 
         <div class="card">
           <div class="card-title">
-            <span>ผู้รับรายงานที่เปิดใช้งาน</span>
-            <span class="badge-chip" id="recCountBadge">0 คน/กลุ่ม</span>
+            <span>กฎเวลาเข้างาน</span>
+            <span class="badge-chip orange">07:30 น.</span>
           </div>
-          <div class="stat-val" id="activeRecCount">0 <span>รายการ</span></div>
-          <div class="form-hint">ส่งเฉพาะผู้ที่ระบุ ID (ไม่ Broadcast)</div>
+          <div class="stat-val" style="font-size: 1.15rem;" id="ruleTimeDisplay">สาย: หลัง 07:30</div>
+          <div class="form-hint" id="autoDlDisplay">Auto DL: 09:00 น.</div>
         </div>
 
         <div class="card">
           <div class="card-title">
-            <span>สถานะการส่งล่าสุด</span>
+            <span>ผู้รับรายงานที่เปิดใช้</span>
+            <span class="badge-chip" id="recCountBadge">0 รายการ</span>
           </div>
-          <div class="stat-val" style="font-size: 1.15rem;" id="lastRunStatus">ยังไม่เคยส่ง</div>
-          <div class="form-hint" id="lastRunTime">--</div>
+          <div class="stat-val" id="activeRecCount">0 <span>รายการ</span></div>
+          <div class="form-hint">ส่งเฉพาะผู้ที่ระบุ ID</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>สถานะฐานข้อมูล</span>
+            <span class="badge-chip green" id="dbStatusBadge">กำลังตรวจ...</span>
+          </div>
+          <div class="stat-val" style="font-size: 1.1rem;" id="dbStatusText">hiptime</div>
+          <div class="form-hint" id="dbHostDisplay">SQL Server 2012</div>
         </div>
       </div>
+
 
       <!-- Main Content: 2 Columns -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
@@ -541,9 +599,121 @@
         </div>
 
       </div>
+
+      <!-- 3. SYSTEM LOGS & DIAGNOSTICS SECTION -->
+      <div class="card" id="logsCard" style="margin-top: 24px;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div>
+            <h2 style="font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+              <span>📋</span> บันทึกการทำงาน & รายงานข้อผิดพลาด (System Logs)
+            </h2>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">
+              แสดงข้อผิดพลาดล่าสุดสำหรับกด <strong>"คัดลอก Log ทั้งหมด"</strong> ส่งให้ทีมงาน/โปรแกรมเมอร์แก้ไข
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="filterErrorOnly" onchange="renderLogs()"> เฉพาะ Error
+            </label>
+            <button class="btn btn-outline btn-sm" onclick="fetchLogs()">🔄 รีเฟรช</button>
+            <button class="btn btn-primary btn-sm" onclick="copyAllLogs()">📋 คัดลอก Log ทั้งหมด (Copy)</button>
+            <button class="btn btn-outline btn-sm" onclick="clearLogs()" style="color: #fca5a5;">🧹 ล้าง Log</button>
+          </div>
+        </div>
+        
+        <div class="log-terminal" id="logTerminal">กำลังโหลดบันทึกการทำงาน...</div>
+      </div>
+
     </div>
 
   </div>
+
+  <!-- 4. SETTINGS MODAL -->
+  <div id="settingsModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="font-size: 1.15rem;">⚙️ ตั้งค่าระบบ (Settings)</h2>
+        <button class="btn btn-outline btn-sm" onclick="closeSettingsModal()">✖ ปิด</button>
+      </div>
+
+      <form id="settingsForm" onsubmit="handleSaveSettings(event)">
+        <!-- เวลาทำงานและการส่ง -->
+        <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 10px;">⏰ เวลาทำงานและรอบการส่งรายงาน</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="cfgLateTime">เวลาตัดสาย *</label>
+            <input class="form-input" id="cfgLateTime" value="07:30" placeholder="07:30" required>
+            <div class="form-hint">7.30 ถือว่าสาย</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgAutoDlTime">HIP Auto Download *</label>
+            <input class="form-input" id="cfgAutoDlTime" value="09:00" placeholder="09:00" required>
+            <div class="form-hint">HIP ดึงเข้า DB ตอน 9.00</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgSendTimes">เวลาส่ง LINE *</label>
+            <input class="form-input" id="cfgSendTimes" value="09:30" placeholder="09:30" required>
+            <div class="form-hint">ส่งสรุปตอน 9.30</div>
+          </div>
+        </div>
+
+        <!-- การเชื่อมต่อ SQL Server -->
+        <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 10px; border-top: 1px solid var(--card-border); padding-top: 14px;">🗄️ การเชื่อมต่อฐานข้อมูล SQL Server</h3>
+        
+        <div class="form-group">
+          <label class="form-label" for="cfgAuthType">รูปแบบการยืนยันตัวตน (Authentication)</label>
+          <select class="form-input" id="cfgAuthType" onchange="toggleAuthFields()">
+            <option value="windows">Windows Authentication (ไม่ต้องใช้รหัสผ่าน sa - แนะนำบน Windows 7)</option>
+            <option value="sql">SQL Server Authentication (ระบุ User sa และ Password)</option>
+            <option value="mock">โหมดจำลอง (Mock DB - เสมือนจริง ไม่ต้องเปิด SQL Server)</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="cfgDbHost">Server / Host / Instance *</label>
+            <input class="form-input" id="cfgDbHost" value=".\SQLEXPRESS" placeholder="เช่น .\SQLEXPRESS หรือ 127.0.0.1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cfgDbPort">Port</label>
+            <input class="form-input" id="cfgDbPort" value="1433" placeholder="1433">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cfgDbName">ชื่อฐานข้อมูล (Database Name) *</label>
+          <input class="form-input" id="cfgDbName" value="hiptime" placeholder="hiptime">
+          <div class="form-hint">ตามหน้าจอ HIP Time: hiptime</div>
+        </div>
+
+        <div id="sqlAuthFields" style="display: none;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label" for="cfgDbUser">User</label>
+              <input class="form-input" id="cfgDbUser" value="sa" placeholder="sa">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfgDbPass">Password</label>
+              <input type="password" class="form-input" id="cfgDbPass" placeholder="รหัสผ่าน sa (ถ้ามี)">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 8px;">
+          <button type="button" class="btn btn-outline" style="width: 100%; justify-content: center;" onclick="testDbConnection()">
+            🔌 ทดสอบการเชื่อมต่อ Database ตอนนี้ (Live Connection Test)
+          </button>
+          <div id="testDbResult" style="margin-top: 8px; font-size: 0.85rem; display: none;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; border-top: 1px solid var(--card-border); padding-top: 14px;">
+          <button type="button" class="btn btn-outline" onclick="closeSettingsModal()">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">💾 บันทึกการตั้งค่า</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 
   <div id="toast"></div>
 
@@ -629,12 +799,36 @@
         
         document.getElementById("companyName").innerText = data.company_name;
         document.getElementById("subtitleDate").innerText = data.today_thai;
-        document.getElementById("sendTimesDisplay").innerText = data.send_times.join(", ") + " น.";
+        document.getElementById("sendTimesDisplay").innerText = (data.send_times || ["09:30"]).join(", ") + " น.";
         document.getElementById("nextRunDisplay").innerText = "รอบถัดไป: " + (data.next_run || "ไม่มี");
         document.getElementById("activeRecCount").innerHTML = `${data.active_count} <span>คน/กลุ่ม</span>`;
         document.getElementById("recCountBadge").innerText = `${data.active_count} เปิดใช้งาน`;
-        document.getElementById("lastRunStatus").innerText = data.last_run_status;
-        document.getElementById("lastRunTime").innerText = data.last_run_time ? "เมื่อ " + data.last_run_time : "--";
+
+        if (document.getElementById("ruleTimeDisplay")) {
+          document.getElementById("ruleTimeDisplay").innerText = "สาย: หลัง " + (data.late_time || "07:30") + " น.";
+        }
+        if (document.getElementById("autoDlDisplay")) {
+          document.getElementById("autoDlDisplay").innerText = "Auto DL: " + (data.auto_download_time || "09:00") + " น.";
+        }
+        if (document.getElementById("dbStatusBadge")) {
+          if (data.mock_mode) {
+            document.getElementById("dbStatusBadge").innerText = "โหมดจำลอง (Mock)";
+            document.getElementById("dbStatusBadge").className = "badge-chip orange";
+            document.getElementById("dbStatusText").innerText = "Mock DB Ready";
+            document.getElementById("dbHostDisplay").innerText = "ข้อมูลเสมือนจริง";
+          } else if (data.db_connected) {
+            document.getElementById("dbStatusBadge").innerText = "เชื่อมต่อแล้ว";
+            document.getElementById("dbStatusBadge").className = "badge-chip green";
+            document.getElementById("dbStatusText").innerText = "hiptime (OK)";
+            document.getElementById("dbHostDisplay").innerText = "SQL Server 2012";
+          } else {
+            document.getElementById("dbStatusBadge").innerText = "มีข้อผิดพลาด";
+            document.getElementById("dbStatusBadge").className = "badge-chip red";
+            document.getElementById("dbStatusText").innerText = "ไม่ได้เชื่อมต่อ";
+            document.getElementById("dbHostDisplay").innerText = "ดูข้อผิดพลาดที่ Log ด้านล่าง";
+          }
+        }
+
         document.getElementById("previewText").innerText = data.preview_text || "ไม่มีข้อมูล";
 
         // Webhook URL
@@ -645,10 +839,12 @@
         window._currentRecipients = data.recipients || [];
         renderDiscovered(window._currentDiscovered, window._currentRecipients);
         renderRecipients(window._currentRecipients);
+        fetchLogs();
       } catch (e) {
         showToast("เชื่อมต่อระบบไม่สำเร็จ: " + e.message, false);
       }
     }
+
 
     function renderDiscovered(discoveredList, recipientsList) {
       const el = document.getElementById("discoveredList");
@@ -863,8 +1059,223 @@
       }[m]));
     }
 
+    function scrollToLogs() {
+      const el = document.getElementById("logsCard");
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ================== LOGS MANAGEMENT ==================
+    window._cachedLogs = [];
+
+    async function fetchLogs() {
+      try {
+        const res = await authFetch("/api/logs");
+        if (!res.ok) return;
+        const data = await res.json();
+        window._cachedLogs = data.logs || [];
+        renderLogs();
+      } catch (e) {
+        console.error("fetchLogs failed", e);
+      }
+    }
+
+    function renderLogs() {
+      const term = document.getElementById("logTerminal");
+      if (!term) return;
+      const filterErr = document.getElementById("filterErrorOnly")?.checked;
+      let logs = window._cachedLogs || [];
+      if (filterErr) {
+        logs = logs.filter(l => l.level === "ERROR");
+      }
+
+      if (logs.length === 0) {
+        term.innerHTML = '<div style="color: #64748b; padding: 8px;">ยังไม่มีรายการบันทึก (ระบบทำงานปกติ)</div>';
+        return;
+      }
+
+      term.innerHTML = logs.map(l => {
+        const cls = l.level.toLowerCase();
+        let errBlock = "";
+        if (l.error_details) {
+          errBlock = `<div style="color: #fca5a5; font-size: 0.75rem; margin-top: 2px; white-space: pre;">${escapeHtml(l.error_details)}</div>`;
+        }
+        return `
+          <div class="log-line ${cls}">
+            <span style="color: #64748b;">[${escapeHtml(l.time)}]</span>
+            <strong>[${escapeHtml(l.level)}]</strong>
+            <span style="color: #cbd5e1;">${escapeHtml(l.message)}</span>
+            ${errBlock}
+          </div>
+        `;
+      }).join('');
+
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function copyAllLogs() {
+      const logs = window._cachedLogs || [];
+      if (logs.length === 0) {
+        showToast("ไม่มีข้อความ Log ให้คัดลอก", false);
+        return;
+      }
+
+      const fullText = logs.map(l => {
+        let t = `[${l.time}] [${l.level}] ${l.name}: ${l.message}`;
+        if (l.error_details) {
+          t += `\nTraceback:\n${l.error_details}`;
+        }
+        return t;
+      }).join('\n');
+
+      navigator.clipboard.writeText(fullText).then(() => {
+        showToast("📋 คัดลอก Log ทั้งหมดเข้า Clipboard เรียบร้อยแล้ว (นำไปวางส่งต่อได้ทันที)");
+      }).catch(() => {
+        showToast("ไม่สามารถเข้าถึง Clipboard ได้", false);
+      });
+    }
+
+    async function clearLogs() {
+      if (!confirm("ต้องการล้าง Log ทั้งหมดใช่หรือไม่?")) return;
+      try {
+        const res = await authFetch("/api/logs/clear", { method: "POST" });
+        const data = await res.json();
+        if (data.ok) {
+          window._cachedLogs = [];
+          renderLogs();
+          showToast("ล้าง Log เรียบร้อยแล้ว");
+        }
+      } catch (e) {
+        showToast("ล้าง Log ไม่สำเร็จ: " + e.message, false);
+      }
+    }
+
+    // ================== SETTINGS MODAL ==================
+    async function openSettingsModal() {
+      try {
+        const res = await authFetch("/api/settings");
+        if (!res.ok) throw new Error("โหลดการตั้งค่าไม่สำเร็จ");
+        const cfg = await res.json();
+        
+        document.getElementById("cfgLateTime").value = cfg.late_time || "07:30";
+        document.getElementById("cfgAutoDlTime").value = cfg.auto_download_time || "09:00";
+        document.getElementById("cfgSendTimes").value = (cfg.send_times || ["09:30"]).join(", ");
+        document.getElementById("cfgDbHost").value = cfg.db_host || ".\\SQLEXPRESS";
+        document.getElementById("cfgDbPort").value = cfg.db_port || 1433;
+        document.getElementById("cfgDbName").value = cfg.db_name || "hiptime";
+        document.getElementById("cfgDbUser").value = cfg.db_user || "sa";
+        document.getElementById("cfgDbPass").value = "";
+        
+        const authSel = document.getElementById("cfgAuthType");
+        if (cfg.mock_mode) {
+          authSel.value = "mock";
+        } else if (cfg.db_auth === "windows") {
+          authSel.value = "windows";
+        } else {
+          authSel.value = "sql";
+        }
+        toggleAuthFields();
+        document.getElementById("testDbResult").style.display = "none";
+        document.getElementById("settingsModal").style.display = "flex";
+      } catch (e) {
+        showToast(e.message, false);
+      }
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("settingsModal").style.display = "none";
+    }
+
+    function toggleAuthFields() {
+      const mode = document.getElementById("cfgAuthType").value;
+      const sqlFields = document.getElementById("sqlAuthFields");
+      sqlFields.style.display = (mode === "sql") ? "block" : "none";
+    }
+
+    async function testDbConnection() {
+      const resBox = document.getElementById("testDbResult");
+      resBox.style.display = "block";
+      resBox.innerHTML = '<span style="color: #38bdf8;">⏳ กำลังทดสอบเชื่อมต่อฐานข้อมูล...</span>';
+
+      const mode = document.getElementById("cfgAuthType").value;
+      const payload = {
+        db_host: document.getElementById("cfgDbHost").value.trim(),
+        db_port: parseInt(document.getElementById("cfgDbPort").value.trim()) || 1433,
+        db_name: document.getElementById("cfgDbName").value.trim(),
+        db_user: document.getElementById("cfgDbUser").value.trim(),
+        db_password: document.getElementById("cfgDbPass").value,
+        db_auth: mode === "mock" ? "sql" : mode,
+        mock_mode: mode === "mock",
+      };
+
+      try {
+        const res = await authFetch("/api/test-db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.ok) {
+          resBox.innerHTML = `
+            <div style="background: rgba(6,199,85,0.15); border: 1px solid rgba(6,199,85,0.4); color: #86efac; padding: 10px; border-radius: 6px;">
+              ✅ <strong>${escapeHtml(data.message)}</strong><br>
+              ฐานข้อมูล: <code>${escapeHtml(data.database)}</code> | พนักงาน: <strong>${data.employee_count}</strong> คน
+            </div>
+          `;
+        } else {
+          resBox.innerHTML = `
+            <div style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; padding: 10px; border-radius: 6px;">
+              ❌ <strong>เชื่อมต่อไม่สำเร็จ:</strong> ${escapeHtml(data.error)}<br>
+              💡 <strong>คำแนะนำ:</strong> ${escapeHtml(data.advice || "ตรวจสอบ IP และรหัสผ่าน")}
+            </div>
+          `;
+        }
+      } catch (e) {
+        resBox.innerHTML = `<span style="color: #f87171;">เกิดข้อผิดพลาดในการทดสอบ: ${escapeHtml(e.message)}</span>`;
+      }
+    }
+
+    async function handleSaveSettings(e) {
+      e.preventDefault();
+      const mode = document.getElementById("cfgAuthType").value;
+      const sendTimes = document.getElementById("cfgSendTimes").value.split(",").map(s => s.trim()).filter(Boolean);
+
+      const payload = {
+        late_time: document.getElementById("cfgLateTime").value.trim(),
+        auto_download_time: document.getElementById("cfgAutoDlTime").value.trim(),
+        send_times: sendTimes.length ? sendTimes : ["09:30"],
+        db_host: document.getElementById("cfgDbHost").value.trim(),
+        db_port: parseInt(document.getElementById("cfgDbPort").value.trim()) || 1433,
+        db_name: document.getElementById("cfgDbName").value.trim(),
+        db_user: document.getElementById("cfgDbUser").value.trim(),
+        db_auth: mode === "mock" ? "sql" : mode,
+        mock_mode: mode === "mock",
+      };
+
+      const pass = document.getElementById("cfgDbPass").value;
+      if (pass) {
+        payload.db_password = pass;
+      }
+
+      try {
+        const res = await authFetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error("บันทึกไม่สำเร็จ");
+        showToast("💾 บันทึกการตั้งค่าเรียบร้อยแล้ว!");
+        closeSettingsModal();
+        loadStatus();
+      } catch (err) {
+        showToast(err.message, false);
+      }
+    }
+
     checkAuth();
     setInterval(loadStatus, 15000);
+    setInterval(fetchLogs, 10000);
   </script>
+
 </body>
 </html>
