@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -59,37 +58,42 @@ func Connect(cfg config.Settings) (Database, error) {
 }
 
 func buildConnString(cfg config.Settings) string {
-	query := url.Values{}
-	query.Add("database", cfg.DBName)
-	query.Add("connection timeout", "10")
-	query.Add("dial timeout", "10")
-
-	// Host & Instance
-	server := cfg.DBHost
+	server := strings.TrimSpace(cfg.DBHost)
 	if server == "" {
-		server = ".\\SQLEXPRESS"
+		server = `.\SQLEXPRESS`
+	}
+	// ปรับ backslash ให้ถูกต้อง ไม่ให้ซ้ำซ้อน
+	server = regexp.MustCompile(`\\+`).ReplaceAllString(server, `\`)
+
+	dbName := strings.TrimSpace(cfg.DBName)
+	if dbName == "" {
+		dbName = "hiptime"
 	}
 
-	// ถ้าระบุเป็น Windows Authentication
+	var parts []string
+	parts = append(parts, fmt.Sprintf("server=%s", server))
+
+	// ถ้าไม่มี instance และระบุ port พิเศษ
+	if cfg.DBPort > 0 && cfg.DBPort != 1433 && !strings.Contains(server, `\`) {
+		parts = append(parts, fmt.Sprintf("port=%d", cfg.DBPort))
+	}
+	parts = append(parts, fmt.Sprintf("database=%s", dbName))
+	parts = append(parts, "connection timeout=10")
+	parts = append(parts, "dial timeout=10")
+
+	// Authentication mode
 	if strings.EqualFold(cfg.DBAuth, "windows") || cfg.DBPassword == "" {
-		// go-mssqldb รองรับ Windows Auth ผ่าน trusted_connection หรือ ntlm
-		query.Add("trusted_connection", "yes")
-		u := &url.URL{
-			Scheme:   "sqlserver",
-			Host:     server,
-			RawQuery: query.Encode(),
+		parts = append(parts, "trusted_connection=yes")
+	} else {
+		user := strings.TrimSpace(cfg.DBUser)
+		if user == "" {
+			user = "sa"
 		}
-		return u.String()
+		parts = append(parts, fmt.Sprintf("user id=%s", user))
+		parts = append(parts, fmt.Sprintf("password=%s", cfg.DBPassword))
 	}
 
-	// SQL Authentication
-	u := &url.URL{
-		Scheme:   "sqlserver",
-		User:     url.UserPassword(cfg.DBUser, cfg.DBPassword),
-		Host:     fmt.Sprintf("%s:%d", server, cfg.DBPort),
-		RawQuery: query.Encode(),
-	}
-	return u.String()
+	return strings.Join(parts, ";") + ";"
 }
 
 func (s *SQLServerDB) Close() error {
